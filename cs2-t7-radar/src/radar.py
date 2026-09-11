@@ -38,7 +38,7 @@ def collect_batch(client, conn, cfg):
 def score_all(conn, cfg):
     results=[]
     now=int(time.time())
-    for mh in db.latest_candidates(conn,168):
+    for mh in db.candidates(conn,168):
         s=score_item(db.series(conn,mh,168),now)
         if s:
             s['marketHashName']=mh
