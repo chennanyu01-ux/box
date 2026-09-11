@@ -1,0 +1,12 @@
+{
+  "name": "Life K-Line Final",
+  "version": "1.0.0",
+  "status": "canonical",
+  "repository": "chennanyu01-ux/box",
+  "branch": "life-kline-final",
+  "baseline": "2002-12-12/",
+  "shared_styles": "styles.css",
+  "supersedes": "old lifekline generation workflow",
+  "created": "2026-09-12",
+  "trigger": "用人生K线最终版生成"
+}
