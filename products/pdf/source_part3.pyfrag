@@ -1,4 +1,4 @@
-        if r and r not in seen: seen.append(r)
+
     while len(seen)<3: seen.append(seen[-1])
     titles=['当前年份','两年后','五年后']
     for i,r in enumerate(seen[:3]):
