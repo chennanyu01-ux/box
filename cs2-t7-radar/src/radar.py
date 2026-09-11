@@ -41,7 +41,10 @@ def score_all(conn, cfg):
     for mh in db.candidates(conn,168):
         s=score_item(db.series(conn,mh,168),now)
         if s:
+            meta=db.item_meta(conn,mh)
+            s['name_cn']=meta.get('display') or mh
             s['marketHashName']=mh
+            s['buff_item_id']=meta.get('buff_item_id') or None
             results.append(s)
     results.sort(key=lambda x:x['score'],reverse=True)
     return results
