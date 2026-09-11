@@ -1,0 +1,12 @@
+{
+  "universe_include": ["^Sticker \\|", "^Sealed Graffiti \\|", "^Graffiti \\|"],
+  "universe_exclude": [],
+  "batch_size": 100,
+  "batch_interval_seconds": 61,
+  "hot_interval_seconds": 60,
+  "hot_limit": 30,
+  "hot_score_threshold": 58,
+  "min_platforms": 2,
+  "min_sell_count": 3,
+  "signal_windows_hours": [1, 6, 24, 72, 168]
+}
