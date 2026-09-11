@@ -5,9 +5,10 @@ from scoring import score_item
 
 
 class TestScoring(unittest.TestCase):
-    def make_rows(self, mode='accumulation'):
+    def make_rows(self, mode='accumulation', include_buff=True):
         now=1_800_000_000; rows=[]
-        for platform in ['A','B','C']:
+        platforms=['BUFF','C5','YYYP'] if include_buff else ['A','B','C']
+        for platform in platforms:
             for h in [168,72,24,6,1,0]:
                 t=now-h*3600
                 if mode=='accumulation':
@@ -27,6 +28,8 @@ class TestScoring(unittest.TestCase):
     def test_accumulation_is_buyable(self):
         a,now=self.make_rows('accumulation'); flat,_=self.make_rows('flat')
         sa=score_item(a,now); sf=score_item(flat,now)
+        self.assertEqual(sa['reference_platform'],'BUFF')
+        self.assertTrue(sa['buff_data_available'])
         self.assertGreater(sa['manipulation_score'],sf['manipulation_score'])
         self.assertGreater(sa['entry_score'],sf['entry_score'])
         self.assertEqual(sa['stage'],'ACCUMULATION')
@@ -39,6 +42,13 @@ class TestScoring(unittest.TestCase):
         self.assertLess(sb['entry_score'],sa['entry_score'])
         self.assertEqual(sb['stage'],'DISTRIBUTION')
         self.assertEqual(sb['action'],'AVOID')
+
+    def test_no_buy_signal_without_buff(self):
+        a,now=self.make_rows('accumulation',False)
+        s=score_item(a,now)
+        self.assertFalse(s['buff_data_available'])
+        self.assertEqual(s['action'],'WATCH_NO_BUFF')
+        self.assertLessEqual(s['entry_score'],49)
 
 
 if __name__=='__main__': unittest.main()
