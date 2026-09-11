@@ -1,50 +1,97 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=yes">
-<meta name="color-scheme" content="dark">
-<title>{{NAME}} · 人生 K 线｜Desktop v1.0</title>
-<style>__STYLE__</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{NAME}} · 可解释运势 K 线</title>
+  <meta name="description" content="综合运势 K 线、四项趋势与逐年评分账本。单文件离线版。">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%230c1118'/%3E%3Cpath d='M9 6v20m14-20v20' stroke='%23ffaa45' stroke-width='2'/%3E%3Cpath d='M9 10v8m14-3v8' stroke='%23ffaa45' stroke-width='6'/%3E%3C/svg%3E">
+  <style>__STYLE__</style>
 </head>
 <body>
-<main class="shell">
-  <section class="hero">
-    <div class="hero-top">
-      <div><div class="eyebrow">Personal Life K-Line · Desktop Offline Edition</div><h1>{{NAME}} · 人生 K 线</h1><div class="subtitle">{{SUBTITLE}}</div></div>
-      <div class="pills">{{PILLS}}<span class="pill offline">● 单文件 · 离线可运行</span></div>
+<header>
+  <div class="brand"><span class="brand-icon">▥</span><div>流年 <strong>趋势</strong><small>LIFE TREND / 个人研究图谱</small></div></div>
+  <div class="header-actions"><span class="badge">规则模型 1.2 · 离线单文件</span><button id="downloadHtml">复制当前地址</button><button id="downloadJson" class="accent">导出 JSON ↓</button></div>
+</header>
+<main>
+  <section class="profile-strip">
+    <div><span class="eyebrow">{{NAME}} · 固定命盘</span><div class="pillars">壬午 <em>/</em> 壬子 <em>/</em> 甲寅 <em>/</em> 丙寅</div></div>
+    <p>女命 · 真太阳时已校正<br><span>2002.12.12 · 北京时间 04:00–05:00 → 真太阳时约 03:11–04:11</span></p>
+    <p>日主为甲木<br><span>壬年女命逆排大运；04:30 中点换算真太阳时约 03:41，稳定为寅时</span></p>
+    <a href="#method">术语与规则 ↗</a>
+  </section>
+
+  <div class="toolbar">
+    <div><h1>流年运势图谱</h1><span class="muted">综合指数与四项分数的年度变化</span></div>
+    <div class="range-control" aria-label="选择图表显示年份">
+      <div class="range-head"><span>显示年份</span><strong id="rangeLabel">2020–2050</strong></div>
+      <div class="dual-range">
+        <div class="range-rail"><i id="rangeFill"></i></div>
+        <input id="rangeStart" type="range" min="2002" max="2101" value="2020" aria-label="起始年份">
+        <input id="rangeEnd" type="range" min="2002" max="2101" value="2050" aria-label="结束年份">
+      </div>
+      <div class="range-minmax"><span>2002</span><span>拖动两端选择区间</span><span>2101</span></div>
     </div>
-    <div class="metrics" id="metrics"></div>
+  </div>
+
+  <section id="metrics" class="metrics" aria-label="当前年度分数"></section>
+
+  <div class="workspace">
+    <section class="panel chart-panel">
+      <div class="panel-title chart-heading"><div><h2>综合 K 线与分项趋势 <span id="axisDomain" class="muted"></span></h2></div><div id="seriesControls" class="series-controls" aria-label="图表显示控制"></div></div>
+      <div id="chart" class="chart" tabindex="0" role="group" aria-label="综合运势 K 线与分项折线。左右方向键切换年份，也可使用年份选择器。"></div>
+      <div class="chart-footer"><span id="chartHint">点击年份查看评分账本</span><span>纵轴按全盘范围折叠 · 绿涨红跌</span></div>
+    </section>
+
+    <aside class="panel year-panel">
+      <div class="year-nav"><button id="prev" aria-label="上一年">←</button><label><span class="sr-only">选择年份</span><select id="year"></select></label><button id="next" aria-label="下一年">→</button></div>
+      <div id="yearDetail" aria-live="polite"></div>
+      <div class="small-note">分数表示这套规则中“支持因素有多少”，不是收入金额、结婚概率，也不是现实事件的保证。</div>
+      <div class="sensitivity">
+        <div class="sensitivity-title"><h3>换一种判断口径</h3><span>同年对比</span></div>
+        <p class="muted">命盘和年份不变，只改变“哪些五行更有帮助”的加权。三种结果越接近，说明这一年的判断越不依赖某一种身强弱看法。</p>
+        <div id="sensitivity" class="profile-options" role="group" aria-label="选择评分口径"></div>
+        <p id="profileSummary" class="profile-summary"></p>
+      </div>
+    </aside>
+
+    <section class="panel ledger-panel">
+      <div class="panel-title"><div><h2 id="ledgerTitle">年度评分账本</h2><p class="muted">四项先从 50 分起算，再逐条加减；综合分按事业 30%、财运 30%、感情 20%、贵人 20% 合成</p></div><button id="downloadCsv">导出年度表 CSV ↓</button></div>
+      <div class="table-scroll"><table><thead><tr><th>为什么加分或减分</th><th>事业</th><th>财运</th><th>感情</th><th>贵人</th><th>综合影响</th></tr></thead><tbody id="ledger"></tbody><tfoot id="ledgerTotal"></tfoot></table></div>
+      <p class="ledger-note muted">表中保留专业术语，同时在前后补上白话含义。单项显示 3 位小数，最终分数保留两位；交运年份按两段大运各自覆盖的天数加权。</p>
+    </section>
+  </div>
+
+  <section class="panel method" id="method">
+    <h2>这张图怎么读、怎么算</h2>
+    <p>这是一套可以逐条复算的传统文化规则实验。分数用于比较不同年份的相对强弱，不是现实概率，也不是古籍中原本就存在的标准分数。</p>
+    <details open><summary>先看懂几个常用词</summary><div class="glossary-grid">
+      <p><strong>日主</strong><span>出生日的天干，用来代表命主本人。本盘日主是“甲”，五行属木。</span></p>
+      <p><strong>流年</strong><span>当年的外部环境。本页按立春分年，不是按元旦分年。</span></p>
+      <p><strong>大运</strong><span>约十年一段的长期背景。遇到交运年份，会按两段各自覆盖的天数计算。</span></p>
+      <p><strong>十神</strong><span>其他天干相对日主的关系分类，例如财、官、印。它表示作用类型，不等于某件事情必然发生。</span></p>
+      <p><strong>透干 / 藏干</strong><span>“透干”是天干直接出现；“藏干”是地支内部所含的天干。本模型分别按 40% 和 60% 计入。</span></p>
+      <p><strong>合、冲、刑、害</strong><span>干支之间不同的互动方式。合不一定全好，冲也不一定全坏，本页只按公开规则计入相对影响。</span></p>
+    </div></details>
+    <details><summary>出生时间与大运的计算口径</summary><div id="calendarMethod"></div></details>
+    <details><summary>评分口径为什么有三种</summary><p>传统命理对“日主强弱”和“哪些五行更需要”可能有不同判断。这里不把某一种判断伪装成唯一答案，而是把同一年放进三种公开口径中比较：火土调候、中性参考、水木顺势。它们只改变五行加权，不改变出生信息、流年、大运、十神基础分和干支关系。若三种分数接近，说明结论相对稳定；差距很大，则表示结果较依赖这项判断。</p></details>
+    <details><summary>完整计分规则与系数</summary><div id="rulebook"></div></details>
+    <details><summary>K 线、四项分数与模型边界</summary>
+      <p>事业分主要观察任务推进、表达与组织资源；财运分观察资源获取与保留；感情分观察相处支持与摩擦；贵人分观察连接、学习和外部帮助。未成年阶段只把它们看作符号维度，不直接解释为就业、投资或婚恋事件。</p>
+      <p>综合分 = 事业 × 30% + 财运 × 30% + 感情 × 20% + 贵人 × 20%。四项都从 50 分起算，逐条汇总后限制在 0–100。</p>
+      <p>K 线的“年初承接值”沿用上一年的综合分，“年度结果值”就是本年综合分。影线只是为了保留 K 线的视觉识别，已压缩为很小的范围；它不是年内真实最高、最低，也不是统计置信区间。</p>
+      <p>模型只覆盖账本中明确展示的简化规则，没有完整实现格局、调候、三合三会、刑局、合化和全部神煞，也没有用真实人生经历做回测。100 年只是展示范围，不用于推断寿命；曲线也没有预设必须在哪一年达到峰值。</p>
+    </details>
+    <details><summary>来源与数据兼容性</summary><p>视觉与年度字段参考 curionox/lifekline，本页面独立实现。最终交付版本为单文件 HTML，全部计算在本地完成；核心页面无 API、无 CDN、无外链脚本，也不会主动发送网络请求。</p></details>
   </section>
 
-  <section class="section card" id="klineSection">
-    <button type="button" class="fullscreen-close" id="fullscreenClose" aria-label="退出全屏">✕ 退出</button>
-    <div class="card-title">
-      <div><h2>100 年人生 K 线总览</h2><div class="hint">鼠标拖动平移 · 滚轮围绕指针缩放 · 双击恢复百年总览 · 触屏仍支持双指缩放。</div></div>
-      <div class="title-actions"><div class="legend"><span><i class="dot up"></i>上涨</span><span><i class="dot down"></i>下跌</span></div><button type="button" class="fullscreen-btn" id="fullscreenBtn" aria-label="全屏查看">⛶ 全屏</button></div>
-    </div>
-    <div class="series-controls" id="seriesControls" aria-label="趋势线显示开关"></div>
-    <div class="chart-scroller" id="chartScroller"><div class="chart-stage" id="chartStage"><svg id="chart" viewBox="0 0 1200 520" preserveAspectRatio="none" aria-label="人生K线图" focusable="false"></svg><div class="gesture-badge" id="gestureBadge"><b>100 年</b> · 滚轮缩放</div></div></div>
-    <div class="mobile-help">桌面操作：按住左键左右拖动；鼠标滚轮缩放时间轴；双击恢复百年总览；点击 K 线查看年份。</div>
-    <div class="detail" id="yearDetail"></div>
-  </section>
-
-  <section class="section card"><div class="card-title"><div><h2>五条线怎么看</h2><div class="hint">综合 K 线负责看整体节奏；四条分项线负责解释“为什么这一年高或低”。数值只表示本模型中的相对强弱。</div></div></div><div class="series-guide" id="seriesGuide"></div></section>
-
-  <section class="section two">
-    <div class="card"><div class="card-title"><div><h2>十年阶段结构</h2><div class="hint">按每十年综合分均值观察长期节奏。</div></div></div><div class="decades" id="decades"></div></div>
-    <div class="card"><div class="card-title"><div><h2>峰谷索引</h2><div class="hint">模型中的相对高低点，不代表现实结果概率。</div></div></div><div class="rank-wrap"><div class="rank-col"><h3>TOP 5</h3><div id="topRank"></div></div><div class="rank-col"><h3>BOTTOM 5</h3><div id="bottomRank"></div></div></div></div>
-  </section>
-
-  <section class="section card"><div class="card-title"><div><h2>个人画像</h2><div class="hint">把原网页中的解读压缩成适合反复查阅的信息卡。</div></div></div><div class="profile-grid" id="profiles"></div></section>
-
-  <section class="section card">
-    <div class="card-title"><div><h2>100 年逐年索引</h2><div class="hint">搜索年份、干支或大运；点击任一行会同步到上方年份详情。</div></div></div>
-    <div class="ledger-tools"><input id="search" class="search" placeholder="搜索：2031 / 辛亥 / 壬子"><select id="scoreFilter" class="filter"><option value="all">全部评分</option><option value="high">高位 ≥ 70</option><option value="mid">中段 50–69</option><option value="low">低位 < 50</option></select></div>
-    <div class="table-scroll"><table class="ledger"><thead><tr><th>年龄</th><th>年份</th><th>流年</th><th>大运</th><th>Score</th><th>OHLC</th><th>年度提示</th></tr></thead><tbody id="tbody"></tbody></table></div>
-  </section>
-
-  <footer class="footer"><strong>Life K-Line Desktop v1.0</strong> · 单文件 HTML · 无 CDN / 无外链脚本 / 无网络请求 · 传统文化与娱乐可视化，不用于医学、投资或现实结果预测</footer>
+  <footer><span>{{NAME}} · 流年趋势</span><span>传统文化研究 · 分数仅为模型中的相对指数</span></footer>
+  <div id="toast" role="status"></div>
 </main>
-<script>__APP__</script>
-</body></html>
+
+<script>__CALENDAR__</script>
+<script>__MODEL__</script>
+<script>__APP1__</script>
+<script>__APP2__</script>
+</body>
+</html>
