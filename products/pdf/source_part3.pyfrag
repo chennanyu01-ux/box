@@ -1,0 +1,64 @@
+        if r and r not in seen: seen.append(r)
+    while len(seen)<3: seen.append(seen[-1])
+    titles=['当前年份','两年后','五年后']
+    for i,r in enumerate(seen[:3]):
+        xx=x0+i*(w+9); roundbox(c,xx,y,w,130,WHITE,LINE,4,.5)
+        txt(c,f'{r["year"]} / {titles[i]}',xx+10,y+107,7,'NotoSC-Bold',AMBER if i==0 else INK)
+        txt(c,f'{r["ganZhi"]} · {r["daYun"]} · SCORE {r["score"]}',xx+10,y+90,6,'NotoSC-Bold',MUTED)
+        desc=f'该年综合分 {r["score"]}，用于观察当前阶段中的相对位置；更重要的是结合大运与前后年份一起理解。'
+        para(c,desc,xx+10,y+42,w-20,42,'body'); para(c,r['reason'],xx+10,y+8,w-20,30,'small')
+    footer(c,pg); c.showPage(); pg+=1
+
+    page_header(c,'04 / EXTREMES ATLAS','峰谷索引','不是把“高分=发财、低分=倒霉”，而是把模型中最强和最弱的相对年份集中出来，便于回看与比较。',page=pg)
+    c.bookmarkPage('extremes'); c.addOutlineEntry('04 峰谷索引','extremes',0); x0=20*mm; y0=55; totalw=W-40*mm; colgap=15; colw=(totalw-colgap)/2
+    def extreme_col(title,arr,x,up=True):
+        roundbox(c,x,y0,colw,420,WHITE,LINE,4,.5); txt(c,title,x+12,y0+395,8,'NotoSC-Bold',GREEN if up else RED); txt(c,'年份   年龄   流年   大运   分数   模型说明',x+12,y0+376,5.4,'NotoSC-Bold',MUTED); rowh=34
+        for i,r in enumerate(arr[:10]):
+            yy=y0+350-i*rowh
+            if i%2==0: c.setFillColor(HexColor('#F6F5F0')); c.rect(x+7,yy-8,colw-14,rowh,fill=1,stroke=0)
+            txt(c,f'{i+1:02d}',x+12,yy+4,5.2,'NotoMono',MUTED); txt(c,str(r['year']),x+35,yy+4,6.1,'NotoMono-Bold',INK); txt(c,f'{r["age"]}岁',x+72,yy+4,5.5,'NotoSC',INK); txt(c,r['ganZhi'],x+106,yy+4,5.5,'NotoSC',INK); txt(c,r['daYun'],x+145,yy+4,5.5,'NotoSC',MUTED); txt(c,str(r['score']),x+195,yy+4,7,'NotoMono-Bold',GREEN if up else RED); para(c,r['reason'],x+228,yy-7,colw-240,24,'table2')
+    extreme_col('TOP 10 · 模型高位',tops,x0,True); extreme_col('BOTTOM 10 · 模型低位',bots,x0+colw+colgap,False)
+    roundbox(c,x0,25,totalw,22,HexColor('#E9E5DB'),HexColor('#E0D9CC'),3,.4); txt(c,'读法：峰谷页只用于找“相对强弱”与阶段变化，不能直接翻译成收入、婚姻概率、疾病风险或投资结果。',x0+9,32,5.8,'NotoSC',MUTED); footer(c,pg); c.showPage(); pg+=1
+
+    page_header(c,'05 / PERSONAL PROFILE','个人画像 · 七个维度','这里展示的是原始人生 K 线数据包中的文字维度与 10 分制标签；用于阅读，不等于心理测评量表。',page=pg)
+    c.bookmarkPage('profile'); c.addOutlineEntry('05 个人画像','profile',0); x0=20*mm; totalw=W-40*mm
+    dims=[('命局摘要',D['summaryScore'],D['summary']),('性格模式',D['personalityScore'],D['personality']),('职业环境',D['industryScore'],D['industry']),('财富路径',D['wealthScore'],D['wealth']),('关系模式',D['marriageScore'],D['marriage']),('家庭边界',D['familyScore'],D['family']),('健康字段边界',D['healthScore'],D['health'])]
+    leftw=250; roundbox(c,x0,44,leftw,410,WHITE,LINE,4,.5); txt(c,'PROFILE INDEX',x0+14,430,6,'NotoMono-Bold',AMBER)
+    for i,(name,score,desc) in enumerate(dims):
+        yy=395-i*48; txt(c,name,x0+14,yy+14,6.6,'NotoSC-Bold',INK); txt(c,f'{score}/10',x0+leftw-14,yy+14,6.7,'NotoMono-Bold',INK,'end'); bx=x0+14; bw=leftw-28; by=yy; c.setFillColor(HexColor('#E2E4E1')); c.roundRect(bx,by,bw,6,3,fill=1,stroke=0); c.setFillColor(AMBER if score>=8 else TEAL if score>=7 else HexColor('#8A969C')); c.roundRect(bx,by,bw*score/10,6,3,fill=1,stroke=0)
+    rx=x0+leftw+14; rw=totalw-leftw-14; gap=10; cw=(rw-gap)/2; ch=94
+    for i,(name,score,desc) in enumerate(dims[:6]):
+        col=i%2; row=i//2; xx=rx+col*(cw+gap); yy=360-row*(ch+12); roundbox(c,xx,yy,cw,ch,WHITE,LINE,4,.5); txt(c,name,xx+10,yy+ch-18,7,'NotoSC-Bold',INK); txt(c,f'{score}/10',xx+cw-10,yy+ch-18,6.3,'NotoMono-Bold',AMBER,'end'); para(c,desc,xx+10,yy+10,cw-20,ch-35,'body')
+    name,score,desc=dims[-1]; yy=55; roundbox(c,rx,yy,rw,80,HexColor('#F0ECE2'),LINE,4,.5); txt(c,name,rx+10,yy+58,7,'NotoSC-Bold',INK); txt(c,f'{score}/10',rx+rw-10,yy+58,6.3,'NotoMono-Bold',AMBER,'end'); para(c,desc+'  本产品不会把 K 线低位解释为医学风险，也不会给出疾病预测。',rx+10,yy+10,rw-20,40,'body'); footer(c,pg); c.showPage(); pg+=1
+
+    page_header(c,'06 / BLUEPRINT','命盘底图与计算口径','把“出生信息 → 时间结构 → 年度评分 → K 线”的链路画清楚，让产品不是只有结论。',page=pg)
+    c.bookmarkPage('method'); c.addOutlineEntry('06 命盘底图与方法','method',0); x0=20*mm; totalw=W-40*mm; pillar_w=(totalw-15)/4; labels=['年柱','月柱','日柱','时柱']
+    for i,(lab,pil) in enumerate(zip(labels,D['bazi'])):
+        xx=x0+i*(pillar_w+5); roundbox(c,xx,365,pillar_w,98,WHITE,LINE,4,.5); txt(c,lab,xx+10,440,5.7,'NotoSC',MUTED); txt(c,pil[0],xx+pillar_w/2,408,22,'NotoSC-Bold',INK,'middle'); txt(c,pil[1],xx+pillar_w/2,381,22,'NotoSC-Bold',AMBER if lab=='日柱' else INK,'middle')
+    roundbox(c,x0,270,totalw,75,WHITE,LINE,4,.5); facts=[('北京时间',BIRTH_LOCAL),('出生地',BIRTH_PLACE),('真太阳时',TRUE_SOLAR),('日主',DAY_MASTER),('起运',START_LUCK),('方向',DIRECTION)]; fw=totalw/len(facts)
+    for i,(a,b) in enumerate(facts):
+        xx=x0+i*fw; txt(c,a,xx+10,320,5.4,'NotoSC',MUTED); txt(c,b,xx+10,297,8,'NotoSC-Bold',INK)
+        if i: line(c,xx,282,xx,333,LINE,.35)
+    y=150; h=88; gap=10; boxw=(totalw-gap*4)/5; stages=[('01','出生信息','日期 · 时间 · 地点 · 性别'),('02','校时 / 排盘','真太阳时 · 四柱 · 日主'),('03','时间轴','大运 · 流年 · 交运'),('04','规则评分','十神 · 干支关系 · 权重'),('05','可视化','OHLC → 人生 K 线')]
+    for i,(num,title,sub) in enumerate(stages):
+        xx=x0+i*(boxw+gap); roundbox(c,xx,y,boxw,h,NAVY if i in [0,4] else WHITE,NAVY if i in [0,4] else LINE,4,.5); col=WHITE if i in [0,4] else INK; m=HexColor('#A8B7C1') if i in [0,4] else MUTED; txt(c,num,xx+10,y+h-19,5.2,'NotoMono-Bold',AMBER); txt(c,title,xx+10,y+h-40,8,'NotoSC-Bold',col); para(c,sub,xx+10,y+12,boxw-20,26,'smallw' if i in [0,4] else 'small')
+        if i<4: txt(c,'→',xx+boxw+5,y+h/2-4,10,'NotoSC-Bold',AMBER,'middle')
+    roundbox(c,x0,46,totalw,74,HexColor('#ECE8DE'),LINE,4,.5); txt(c,'模型边界',x0+12,98,6.8,'NotoSC-Bold',INK); notes='综合分用于比较年份相对强弱；K 线的 open/close/high/low 是规则模型的可视化字段，不是金融价格。100 年展示范围不用于寿命判断。命理内容属于传统文化与娱乐性研究，不替代现实中的职业、财务、医疗或关系决策。'; para(c,notes,x0+12,58,totalw-24,35,'body'); footer(c,pg); c.showPage(); pg+=1
+
+    chunks=[P[i:i+20] for i in range(0,100,20)]; c.addOutlineEntry('07-11 百年逐年索引','annual',0)
+    for ci,chunk in enumerate(chunks):
+        if ci==0: c.bookmarkPage('annual')
+        title=f'逐年索引 · {chunk[0]["year"]}-{chunk[-1]["year"]}'; page_header(c,f'{7+ci:02d} / YEAR INDEX',title,'每一行同时保留年份、年龄、流年、大运、OHLC、综合分、迷你 K 线与模型说明。',page=pg); x0=15*mm; table_y=35; table_h=445; totalw=W-30*mm; headerh=22; rowh=(table_h-headerh)/20; cols=[0,32,72,106,145,189,228,267,306,345,390,430,492,totalw]; heads=['#','年份','年龄','流年','大运','OPEN','CLOSE','HIGH','LOW','SCORE','K','变化','模型说明']; c.setFillColor(NAVY); c.roundRect(x0,table_y+table_h-headerh,totalw,headerh,3,fill=1,stroke=0)
+        for j,h in enumerate(heads): txt(c,h,x0+cols[j]+3,table_y+table_h-headerh+7,5.1,'NotoSC-Bold',WHITE)
+        for i,r in enumerate(chunk):
+            yy=table_y+table_h-headerh-(i+1)*rowh
+            if i%2==0: c.setFillColor(HexColor('#F8F7F2')); c.rect(x0,yy,totalw,rowh,fill=1,stroke=0)
+            if r['year']==CURRENT_YEAR: c.setFillColor(HexColor('#FAE7C8')); c.rect(x0,yy,totalw,rowh,fill=1,stroke=0)
+            line(c,x0,yy,x0+totalw,yy,LINE,.22); vals=[f'{r["age"]:02d}',str(r['year']),f'{r["age"]}岁',r['ganZhi'],r['daYun'],str(r['open']),str(r['close']),str(r['high']),str(r['low']),str(r['score'])]
+            for j,v in enumerate(vals):
+                col=AMBER if (r['year']==CURRENT_YEAR and j in [1,9]) else INK; font='NotoMono-Bold' if j in [1,5,6,7,8,9] else 'NotoSC'; txt(c,v,x0+cols[j]+3,yy+rowh/2-2.2,5.4,font,col)
+            draw_mini_candle(c,x0+cols[10],yy+2,cols[11]-cols[10],rowh-4,r,30,90); delta=r['close']-r['open']; txt(c,f'{delta:+d}',x0+cols[11]+3,yy+rowh/2-2.2,5.5,'NotoMono-Bold',GREEN if delta>=0 else RED); para(c,r['reason'],x0+cols[12]+3,yy+2,cols[13]-cols[12]-6,rowh-4,'table2',valign='middle')
+        footer(c,pg); c.showPage(); pg+=1
+    c.save(); print(OUT)
+
+if __name__=='__main__': make_pdf()
