@@ -22,7 +22,7 @@ pills+=f'<span class="pill">{day_master}日主</span><span class="pill">{start_l
 tpl=(base/'template.html').read_text(encoding='utf-8')
 style=(base/'styles.css').read_text(encoding='utf-8')
 app=(base/'app1.js').read_text(encoding='utf-8')+'\n'+(base/'app2.js').read_text(encoding='utf-8')
-data_json=json.dumps({k:v for k,v in d.items() if k!='meta'},ensure_ascii=False,separators=(',',':')).replace('</','<\\/')
+data_json=json.dumps(d,ensure_ascii=False,separators=(',',':')).replace('</','<\\/')
 app=app.replace('__DATA__',data_json)
 out=(tpl.replace('__STYLE__',style).replace('__APP__',app).replace('{{NAME}}',name).replace('{{SUBTITLE}}',subtitle).replace('{{PILLS}}',pills))
 Path(args.out).write_text(out,encoding='utf-8')
