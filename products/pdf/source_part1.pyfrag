@@ -1,0 +1,134 @@
+import json, math, statistics, itertools, os, argparse
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.colors import HexColor, Color
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.platypus import Paragraph
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+from reportlab.lib.units import mm
+
+parser=argparse.ArgumentParser(description='Life K-Line PDF v1.0 builder')
+parser.add_argument('--data', required=True, help='input JSON')
+parser.add_argument('--out', default=None, help='output PDF')
+args=parser.parse_args()
+SRC=args.data
+with open(SRC,encoding='utf-8') as f: D=json.load(f)
+P=D['chartPoints']
+META=D.get('meta',{})
+NAME=META.get('name','客户')
+BIRTH_LOCAL=META.get('birth_local','')
+BIRTH_PLACE=META.get('birthplace','')
+TRUE_SOLAR=META.get('true_solar','')
+DAY_MASTER=META.get('day_master','')
+START_LUCK=META.get('start_luck','')
+DIRECTION=META.get('direction','')
+CURRENT_YEAR=int(META.get('current_year',2026))
+OUT=args.out or f'{NAME}_人生K线个人图谱.pdf'
+
+REG='/usr/share/fonts/truetype/arphic-gbsn00lp/gbsn00lp.ttf'
+DEJ='/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+DEJB='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
+DEJM='/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf'
+DEJMB='/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf'
+pdfmetrics.registerFont(TTFont('NotoSC', REG))
+pdfmetrics.registerFont(TTFont('NotoSC-Bold', REG))
+pdfmetrics.registerFont(TTFont('NotoMono', DEJM))
+pdfmetrics.registerFont(TTFont('NotoMono-Bold', DEJMB))
+
+W,H=landscape(A4)
+INK=HexColor('#182027'); NAVY=HexColor('#0E1923'); NAVY2=HexColor('#142432')
+PAPER=HexColor('#F4F1E9'); PAPER2=HexColor('#ECE8DE'); WHITE=HexColor('#FAF9F5')
+MUTED=HexColor('#67727B'); LINE=HexColor('#CCD1CF'); GRID=HexColor('#D9DEDC')
+AMBER=HexColor('#D78A24'); AMBER2=HexColor('#F1C77F')
+GREEN=HexColor('#23836B'); RED=HexColor('#C34E4B'); BLUE=HexColor('#356C91')
+TEAL=HexColor('#5FA89A'); LIGHTGREEN=HexColor('#DCEBE6'); LIGHTRED=HexColor('#F2DEDC')
+
+styles={
+ 'body': ParagraphStyle('body',fontName='NotoSC',fontSize=7.7,leading=11,textColor=INK,spaceAfter=0),
+ 'small': ParagraphStyle('small',fontName='NotoSC',fontSize=6.5,leading=8.7,textColor=MUTED,spaceAfter=0),
+ 'tiny': ParagraphStyle('tiny',fontName='NotoSC',fontSize=5.8,leading=7.2,textColor=MUTED,spaceAfter=0),
+ 'bodyw': ParagraphStyle('bodyw',fontName='NotoSC',fontSize=7.6,leading=10.5,textColor=WHITE,spaceAfter=0),
+ 'smallw': ParagraphStyle('smallw',fontName='NotoSC',fontSize=6.3,leading=8.4,textColor=HexColor('#B9C5CD'),spaceAfter=0),
+ 'table': ParagraphStyle('table',fontName='NotoSC',fontSize=6.3,leading=7.5,textColor=INK,spaceAfter=0),
+ 'table2': ParagraphStyle('table2',fontName='NotoSC',fontSize=5.7,leading=6.8,textColor=INK,spaceAfter=0),
+}
+
+def para(c,text,x,y,w,h,style='body',valign='top'):
+    text=text.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;').replace('\n','<br/>')
+    p=Paragraph(text,styles[style]); aw,ah=p.wrap(w,h)
+    yy=y+h-ah if valign=='top' else y+(h-ah)/2 if valign=='middle' else y
+    p.drawOn(c,x,yy)
+    return ah
+
+def txt(c,text,x,y,size=8,font='NotoSC',color=INK,anchor='start'):
+    c.setFillColor(color); c.setFont(font,size)
+    if anchor=='end': c.drawRightString(x,y,text)
+    elif anchor=='middle': c.drawCentredString(x,y,text)
+    else: c.drawString(x,y,text)
+
+def line(c,x1,y1,x2,y2,color=LINE,width=.5):
+    c.setStrokeColor(color); c.setLineWidth(width); c.line(x1,y1,x2,y2)
+
+def roundbox(c,x,y,w,h,fill=WHITE,stroke=LINE,r=5,sw=.6):
+    c.setFillColor(fill); c.setStrokeColor(stroke); c.setLineWidth(sw); c.roundRect(x,y,w,h,r,fill=1,stroke=1)
+
+def page_header(c,section,title,sub=None,dark=False,page=None):
+    if dark:
+        c.setFillColor(NAVY); c.rect(0,0,W,H,fill=1,stroke=0)
+        base=WHITE; muted=HexColor('#9EB0BC')
+    else:
+        c.setFillColor(PAPER); c.rect(0,0,W,H,fill=1,stroke=0)
+        base=INK; muted=MUTED
+    txt(c,section.upper(),24*mm,H-15*mm,7,'NotoMono-Bold',AMBER)
+    txt(c,title,24*mm,H-26*mm,19,'NotoSC-Bold',base)
+    if sub: txt(c,sub,24*mm,H-33*mm,7.2,'NotoSC',muted)
+    if page: txt(c,f'{page:02d}',W-20*mm,H-15*mm,7.5,'NotoMono-Bold',muted,'end')
+    return base,muted
+
+def footer(c,page,dark=False):
+    col=HexColor('#71818D') if dark else HexColor('#8A918F'); y=8*mm
+    line(c,20*mm,y+5*mm,W-20*mm,y+5*mm,HexColor('#31414D') if dark else LINE,.35)
+    txt(c,'LIFE K-LINE / PERSONAL TIME ATLAS · 传统文化规则模型，不代表现实概率或投资、医疗判断',20*mm,y,5.5,'NotoSC',col)
+    txt(c,f'{page:02d}',W-20*mm,y,5.8,'NotoMono-Bold',col,'end')
+
+def phase_groups(data=P):
+    out=[]
+    for k,g in itertools.groupby(data,key=lambda z:z['daYun']):
+        gg=list(g); sc=[z['score'] for z in gg]
+        out.append({'name':k,'start':gg[0]['year'],'end':gg[-1]['year'],'age0':gg[0]['age'],'age1':gg[-1]['age'],'avg':statistics.mean(sc),'min':min(sc),'max':max(sc),'data':gg})
+    return out
+PH=phase_groups()
+scores=[p['score'] for p in P]
+avg=statistics.mean(scores); sd=statistics.pstdev(scores)
+tops=sorted(P,key=lambda p:(p['score'],p['year']),reverse=True)
+bots=sorted(P,key=lambda p:(p['score'], -p['year']))
+current=next((p for p in P if p['year']==CURRENT_YEAR), min(P,key=lambda p:abs(p['year']-CURRENT_YEAR)))
+
+def candle(c,cx,y0,scale,rec,width=3.5,up=GREEN,down=RED,wick_alpha=1):
+    col=up if rec['close']>=rec['open'] else down
+    c.setStrokeColor(col); c.setLineWidth(.7); c.line(cx,y0+rec['low']*scale,cx,y0+rec['high']*scale)
+    by=y0+min(rec['open'],rec['close'])*scale; bh=max(1.5,abs(rec['close']-rec['open'])*scale)
+    c.setFillColor(col); c.setStrokeColor(col); c.rect(cx-width/2,by,width,bh,fill=1,stroke=0)
+
+def draw_kline(c,data,x,y,w,h,yr_min=30,yr_max=90,dark=False,current_year=None,show_age=True,phase_labels=True,annotate=True):
+    if current_year is None: current_year=CURRENT_YEAR
+    bg=HexColor('#111F2A') if dark else WHITE; grid=HexColor('#28404F') if dark else GRID; label=HexColor('#9FB0BA') if dark else MUTED
+    c.setFillColor(bg); c.roundRect(x,y,w,h,5,fill=1,stroke=0)
+    left=33; right=10; top=18; bottom=30; px=x+left; py=y+bottom; pw=w-left-right; ph=h-top-bottom
+    n=len(data); step=pw/n; groups=[]
+    for k,g in itertools.groupby(enumerate(data),key=lambda t:t[1]['daYun']):
+        g=list(g); groups.append((k,g[0][0],g[-1][0]))
+    for gi,(name,i0,i1) in enumerate(groups):
+        if gi%2==1:
+            c.setFillColor(HexColor('#172936') if dark else HexColor('#EDF0EF')); c.rect(px+i0*step,py,(i1-i0+1)*step,ph,fill=1,stroke=0)
+        if phase_labels and (i1-i0)>=4: txt(c,name,px+(i0+i1+1)*step/2,y+h-13,5.6,'NotoSC-Bold',label,'middle')
+    for v in range(yr_min,yr_max+1,10):
+        yy=py+(v-yr_min)/(yr_max-yr_min)*ph; line(c,px,yy,px+pw,yy,grid,.35); txt(c,str(v),px-5,yy-2,5.4,'NotoMono',label,'end')
+    line(c,px,py,px,py+ph,label,.45); line(c,px,py,px+pw,py,label,.45)
+    yscale=ph/(yr_max-yr_min)
+    for i,r in enumerate(data):
+        cx=px+(i+.5)*step; col=GREEN if r['close']>=r['open'] else RED; c.setStrokeColor(col); c.setLineWidth(.55)
+        c.line(cx,py+(r['low']-yr_min)*yscale,cx,py+(r['high']-yr_min)*yscale)
+        b0=py+(min(r['open'],r['close'])-yr_min)*yscale; bh=max(1.3,abs(r['close']-r['open'])*yscale); c.setFillColor(col); c.rect(cx-max(1.1,step*.28),b0,max(2.2,step*.56),bh,fill=1,stroke=0)
