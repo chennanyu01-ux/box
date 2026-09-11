@@ -1,26 +1,87 @@
-const DATA=__DATA__;
-const PTS=DATA.chartPoints;
-const CURRENT_YEAR=Number(DATA.meta?.current_year||new Date().getFullYear());
-const WEIGHTS=[.3,.3,.2,.2], SCORE_KEYS=['career','wealth','relationship','opportunity'];
-const SCORE_NAMES={career:'事业',wealth:'财运',relationship:'感情',opportunity:'贵人'};
-const SCORE_COLORS={career:'#75afff',wealth:'#ffb454',relationship:'#d895ee',opportunity:'#50d4cb'};
-const GOD_VECTOR={比肩:[1,-2,0,2],劫财:[0,-3,-1,3],食神:[4,3,1,2],伤官:[5,2,-1,1],偏财:[2,6,2,2],正财:[2,5,4,1],七杀:[3,0,-2,0],正官:[5,1,1,2],偏印:[3,0,0,5],正印:[3,1,1,5]};
-const STEMS='甲乙丙丁戊己庚辛壬癸'.split(''), STEM_ELEM={甲:'木',乙:'木',丙:'火',丁:'火',戊:'土',己:'土',庚:'金',辛:'金',壬:'水',癸:'水'}, ELEM_GEN={木:'火',火:'土',土:'金',金:'水',水:'木'}, ELEM_CTRL={木:'土',土:'水',水:'火',火:'金',金:'木'};
-const polarity=s=>STEMS.indexOf(s)%2===0?'阳':'阴';
-const dayStem=DATA.bazi?.[2]?.[0]||'甲',dayElem=STEM_ELEM[dayStem],dayPol=polarity(dayStem);
-function tenGod(stem){const e=STEM_ELEM[stem],same=polarity(stem)===dayPol;if(e===dayElem)return same?'比肩':'劫财';if(ELEM_GEN[dayElem]===e)return same?'食神':'伤官';if(ELEM_CTRL[dayElem]===e)return same?'偏财':'正财';if(ELEM_CTRL[e]===dayElem)return same?'七杀':'正官';if(ELEM_GEN[e]===dayElem)return same?'偏印':'正印';return '比肩'}
-const STEM_VECTOR=Object.fromEntries(STEMS.map(s=>[s,GOD_VECTOR[tenGod(s)]]));
-const NATAL_BRANCHES=(DATA.bazi||[]).map(x=>x?.[1]).filter(Boolean);
-const RELATIONS=[{pairs:['子丑','寅亥','卯戌','辰酉','巳申','午未'],v:[1,1,3,2]},{pairs:['子午','丑未','寅申','卯酉','辰戌','巳亥'],v:[-3,-3,-4,-1]},{pairs:['子未','丑午','寅巳','卯辰','申亥','酉戌'],v:[-1,-1,-3,-1]},{pairs:['子酉','丑辰','寅亥','卯午','巳申','未戌'],v:[-1,-2,-2,-1]}];
-function pairHit(a,b,pairs){return pairs.some(s=>s.includes(a)&&s.includes(b)&&a!==b)}
-function deriveScores(p){let v=[50,50,50,50];const add=(arr,m=1)=>arr.forEach((x,i)=>v[i]+=x*m);add(STEM_VECTOR[p.ganZhi[0]]||[0,0,0,0],1.15);if(p.daYun&&p.daYun!=='童限'&&p.daYun.length>=2)add(STEM_VECTOR[p.daYun[0]]||[0,0,0,0],.72);const annualBranch=p.ganZhi[1];NATAL_BRANCHES.forEach((b,idx)=>RELATIONS.forEach(r=>{if(pairHit(annualBranch,b,r.pairs)){const vv=r.v.slice();if(idx===2)vv[2]*=1.5;add(vv,.72)}}));const composite=v.reduce((s,x,i)=>s+x*WEIGHTS[i],0),delta=p.score-composite;v=v.map(x=>clamp(x+delta,0,100));const finalComposite=v.reduce((s,x,i)=>s+x*WEIGHTS[i],0),fix=p.score-finalComposite;v=v.map(x=>Math.round(clamp(x+fix,0,100)*10)/10);return Object.fromEntries(SCORE_KEYS.map((k,i)=>[k,v[i]]))}
-PTS.forEach(p=>p.scores=deriveScores(p));
-const $=id=>document.getElementById(id);function clamp(v,a,b){return Math.max(a,Math.min(b,v))}function svgEl(tag,attrs={}){const e=document.createElementNS('http://www.w3.org/2000/svg',tag);Object.keys(attrs).forEach(k=>e.setAttribute(k,attrs[k]));return e}function scoreClass(v){return v>=70?'score-good':v<50?'score-bad':'score-mid'}function mean(arr){return arr.reduce((a,b)=>a+b,0)/Math.max(1,arr.length)}
-const peak=[...PTS].sort((a,b)=>b.high-a.high)[0],trough=[...PTS].sort((a,b)=>a.low-b.low)[0],current=PTS.find(p=>p.year===CURRENT_YEAR)||PTS[0],avg=Math.round(mean(PTS.map(p=>p.score))*10)/10;
-$('metrics').innerHTML=[['当前指数',current.score,`${current.year} · ${current.ganZhi}`],['百年均值',avg,'综合分均值'],['最高高点',peak.high,`${peak.year} · ${peak.ganZhi}`],['最低低点',trough.low,`${trough.year} · ${trough.ganZhi}`],['当前大运',current.daYun,`${current.age}岁 · 模型年龄`]].map(([k,v,s])=>`<div class="metric"><div class="v">${v}</div><div class="k">${k}</div><div class="s">${s}</div></div>`).join('');
-let viewStart=1,viewEnd=100,selectedYear=current.year;const MIN_SPAN=6,MAX_SPAN=100;const series={total:true,career:true,wealth:true,relationship:true,opportunity:true};
-function contiguousBands(data){let out=[],s=null;for(const p of data){if(!s||s.name!==p.daYun){if(s)out.push(s);s={name:p.daYun,start:p.age,end:p.age}}else s.end=p.age}if(s)out.push(s);return out}
-function renderSeriesControls(){const defs=[['total','综合 K 线','#dbe6f3'],...SCORE_KEYS.map(k=>[k,SCORE_NAMES[k],SCORE_COLORS[k]])];$('seriesControls').innerHTML=defs.map(([key,label,color])=>`<button type="button" class="series-toggle ${series[key]?'active':''}" data-series="${key}" style="--series:${color}" aria-pressed="${series[key]}"><span class="series-mark"></span>${label}</button>`).join('')}
-function chartData(){return PTS.filter(p=>p.age>=viewStart-.55&&p.age<=viewEnd+.55)}function normalizeView(start,end){let span=clamp(end-start+1,MIN_SPAN,MAX_SPAN),s=start,e=s+span-1;if(s<1){s=1;e=s+span-1}if(e>100){e=100;s=e-span+1}viewStart=clamp(s,1,100);viewEnd=clamp(e,viewStart,100)}function setViewAround(anchorAge,newSpan,anchorFrac=.5){newSpan=clamp(newSpan,MIN_SPAN,MAX_SPAN);const start=anchorAge-anchorFrac*(newSpan-1);normalizeView(start,start+newSpan-1);scheduleChart()}
-let renderQueued=false;function scheduleChart(){if(renderQueued)return;renderQueued=true;requestAnimationFrame(()=>{renderQueued=false;renderChart()})}function pickNiceStep(raw,candidates){for(const s of candidates){if(s>=raw)return s}return candidates[candidates.length-1]}function adaptiveXTickStep(span,plotW,fontSize){const minGap=Math.max(58,fontSize*5.6),maxTicks=Math.max(2,Math.floor(plotW/minGap));return pickNiceStep(span/Math.max(1,maxTicks-1),[1,2,5,10,20,25,50,100])}function adaptiveYTickStep(yMin,yMax,plotH,fontSize){const range=Math.max(1,yMax-yMin),minGap=Math.max(30,fontSize*2.25),maxTicks=Math.max(2,Math.floor(plotH/minGap)),bySpace=range/Math.max(1,maxTicks-1),byRange=range<=30?5:range<=55?10:20;return pickNiceStep(Math.max(bySpace,byRange),[5,10,20,25,50,100])}
-function renderChart(){const svg=$('chart');svg.innerHTML='';const stage=$('chartStage'),W=Math.max(320,Math.round(stage.clientWidth||360)),H=Math.max(360,Math.round(stage.clientHeight||420));svg.setAttribute('viewBox',`0 0 ${W} ${H}`);svg.setAttribute('preserveAspectRatio','none');svg.appendChild(svgEl('rect',{x:0,y:0,width:W,height:H,fill:'#080d13'}));const span=viewEnd-viewStart+1,data=chartData();if(!data.length)return;const zoom=clamp(Math.sqrt(100/span),1,2.45),axisFont=clamp(9.4*zoom,9.4,16),ageFont=clamp(7.8*zoom,7.8,13.2),bandFont=clamp(9.1*zoom,9.1,14.5),L=clamp(38+axisFont*.35,40,52),R=12,T=26,B=clamp(42+ageFont*.9,46,62),plotW=W-L-R,plotH=H-T-B,x=a=>L+(a-viewStart+.5)*plotW/span;const vals=[];if(series.total)data.forEach(p=>vals.push(p.low,p.high,p.score));SCORE_KEYS.forEach(k=>{if(series[k])data.forEach(p=>vals.push(p.scores[k]))});if(!vals.length)data.forEach(p=>vals.push(p.low,p.high));const yMin=Math.max(0,Math.floor((Math.min(...vals)-6)/10)*10),yMax=Math.min(100,Math.ceil((Math.max(...vals)+6)/10)*10),y=v=>T+(yMax-v)*plotH/(yMax-yMin||1);const colors=['#162238','#162b2d','#251c34','#30251b','#1a2831','#2a1e25'];contiguousBands(data).forEach((b,i)=>{const x1=x(b.start)-plotW/span/2,x2=x(b.end)+plotW/span/2;if(x2<L||x1>W-R)return;svg.appendChild(svgEl('rect',{x:Math.max(L,x1),y:T,width:Math.max(1,Math.min(W-R,x2)-Math.max(L,x1)),height:plotH,fill:colors[i%colors.length],opacity:.13}));if(x2-x1>bandFont*2.3){const tx=svgEl('text',{x:clamp((x1+x2)/2,L+10,W-R-10),y:T+bandFont+2,fill:'#70849b','font-size':bandFont,'text-anchor':'middle','font-weight':'600'});tx.textContent=b.name;svg.appendChild(tx)}});const yStep=adaptiveYTickStep(yMin,yMax,plotH,axisFont),yFirst=Math.ceil(yMin/yStep)*yStep;for(let v=yFirst;v<=yMax+.001;v+=yStep){svg.appendChild(svgEl('line',{x1:L,y1:y(v),x2:W-R,y2:y(v),stroke:'#213041','stroke-width':'1'}));const tx=svgEl('text',{x:L-7,y:y(v)+axisFont*.34,fill:'#7c8ba0','font-size':axisFont,'text-anchor':'end'});tx.textContent=v;svg.appendChild(tx)}const tickStep=adaptiveXTickStep(span,plotW,axisFont),minTickGap=Math.max(58,axisFont*5.6);let tickPts=data.filter(p=>p.age%tickStep===0);const addEdgeTick=p=>{if(!p)return;const xx=x(p.age);if(xx<L-4||xx>W-R+4)return;if(tickPts.every(q=>Math.abs(x(q.age)-xx)>=minTickGap))tickPts.push(p)};addEdgeTick(data[0]);addEdgeTick(data[data.length-1]);tickPts.sort((a,b)=>a.age-b.age);tickPts.forEach(p=>{const xx=x(p.age),tx=svgEl('text',{x:xx,y:H-B+axisFont+7,fill:'#8291a5','font-size':axisFont,'text-anchor':'middle','font-weight':span<=20?'650':'500'});tx.textContent=p.year;svg.appendChild(tx);const ta=svgEl('text',{x:xx,y:H-B+axisFont+ageFont+10,fill:'#59697c','font-size':ageFont,'text-anchor':'middle'});ta.textContent=p.age+'岁';svg.appendChild(ta)});if(CURRENT_YEAR>=data[0].year&&CURRENT_YEAR<=data[data.length-1].year){const cp=data.find(p=>p.year===CURRENT_YEAR);if(cp){const xx=x(cp.age);if(xx>=L&&xx<=W-R){svg.appendChild(svgEl('line',{x1:xx,y1:T,x2:xx,y2:H-B,stroke:'#f0c36b','stroke-width':'1.3','stroke-dasharray':'5 5',opacity:.85}));const t=svgEl('text',{x:xx+5,y:T+bandFont*2.15,fill:'#f0c36b','font-size':bandFont,'font-weight':'700'});t.textContent=String(CURRENT_YEAR);svg.appendChild(t)}}}if(series.total){const d=data.map((p,i)=>(i?'L':'M')+x(p.age)+' '+y(p.score)).join(' ');svg.appendChild(svgEl('path',{d,fill:'none',stroke:'#77a7ff','stroke-width':clamp(1.4*zoom,1.4,2.3),opacity:.46,'stroke-linecap':'round','stroke-linejoin':'round'}))}SCORE_KEYS.forEach(k=>{if(!series[k])return;const d=data.map((p,i)=>(i?'L':'M')+x(p.age)+' '+y(p.scores[k])).join(' ');svg.appendChild(svgEl('path',{d,fill:'none',stroke:SCORE_COLORS[k],'stroke-width':clamp(1.65*zoom,1.7,2.8),'stroke-linecap':'round','stroke-linejoin':'round',opacity:.92}))});const bw=clamp(plotW/span*.56,3.5,18);if(series.total)data.forEach(p=>{const xx=x(p.age);if(xx<L-bw||xx>W-R+bw)return;const up=p.close>=p.open,col=up?'#2bd89f':'#ff6474',g=svgEl('g',{'data-year':p.year}),bodyTop=Math.min(y(p.open),y(p.close)),bodyBottom=Math.max(y(p.open),y(p.close)),rawUpper=Math.max(0,bodyTop-y(p.high)),rawLower=Math.max(0,y(p.low)-bodyBottom),upperLen=rawUpper?clamp(rawUpper*.18,1.5,6):0,lowerLen=rawLower?clamp(rawLower*.18,1.5,6):0;g.appendChild(svgEl('line',{x1:xx,y1:bodyTop-upperLen,x2:xx,y2:bodyBottom+lowerLen,stroke:col,'stroke-width':clamp(1.05*zoom,1,1.6)}));const hh=Math.max(3,Math.abs(y(p.open)-y(p.close)));g.appendChild(svgEl('rect',{x:xx-bw/2,y:bodyTop,width:bw,height:hh,fill:col,rx:'1.5',opacity:p.year===selectedYear?'1':'.9',stroke:p.year===selectedYear?'#fff':'none','stroke-width':p.year===selectedYear?'1.1':'0'}));svg.appendChild(g)});svg.appendChild(svgEl('line',{x1:L,y1:H-B,x2:W-R,y2:H-B,stroke:'#56667a','stroke-width':'1'}));svg.appendChild(svgEl('line',{x1:L,y1:T,x2:L,y2:H-B,stroke:'#56667a','stroke-width':'1'}));$('gestureBadge').innerHTML=`<b>${Math.round(span)} 年</b> · ${data[0].year}–${data[data.length-1].year}`}
+'use strict';
+const M=LifeModel,$=id=>document.getElementById(id),colors=['#75afff','#ffb454','#d895ee','#50d4cb'];
+const YEAR_MIN=2002,YEAR_MAX=2101,MIN_SPAN=4;
+const legacyRanges={near:[2020,2050],early:[2002,2031],middle:[2032,2061],late:[2062,2101],all:[2002,2101]};
+const saved=window.SAVED_STATE||{},fallbackRange=legacyRanges[saved.range]||[2020,2050];
+let profile=saved.profile||'support',selected=saved.year||2026;
+let viewStart=Math.max(YEAR_MIN,Math.min(YEAR_MAX-MIN_SPAN,saved.startYear??fallbackRange[0]));
+let viewEnd=Math.max(viewStart+MIN_SPAN,Math.min(YEAR_MAX,saved.endYear??fallbackRange[1]));
+let all=[],variants={};
+let series={total:true,career:true,wealth:true,relationship:true,opportunity:true,...(saved.series||{})};
+
+const fmt=n=>Number(n).toFixed(2),sign=(n,d=2)=>(n>0?'+':'')+Number(n).toFixed(d),tone=n=>n>0?'up':n<0?'down':'muted';
+const sourceName=s=>s==='流年'?'当年（流年）':'十年阶段（大运）';
+function visible(){return all.filter(d=>d.year>=viewStart&&d.year<=viewEnd);}
+function keepYearVisible(y){
+ const span=viewEnd-viewStart;
+ if(y<viewStart){viewStart=y;viewEnd=Math.min(YEAR_MAX,y+span);}
+ if(y>viewEnd){viewEnd=y;viewStart=Math.max(YEAR_MIN,y-span);}
+}
+function selectYear(y){if(!Number.isInteger(y)||y<YEAR_MIN||y>YEAR_MAX)throw Error(`年份必须在 ${YEAR_MIN}–${YEAR_MAX} 之间`);selected=y;keepYearVisible(y);render();}
+function recalc(){variants=Object.fromEntries(Object.keys(M.profiles).map(p=>[p,M.generate(CALENDAR,p)]));all=variants[profile];render();}
+function line(data,key,width=700,height=60){return data.map((d,i)=>`${i/(data.length-1)*width},${height-((key?d.scores[key]:d.score)/100)*height}`).join(' ');}
+function chartDomain(){const values=[];for(const d of all){if(series.total)values.push(d.low,d.high);M.keys.forEach(k=>{if(series[k])values.push(d.scores[k])});}if(!values.length)values.push(...all.flatMap(d=>[d.low,d.high]));let lo=Math.max(0,Math.floor(Math.min(...values)/5)*5-5),hi=Math.min(100,Math.ceil(Math.max(...values)/5)*5+5);if(hi-lo<30){const mid=(hi+lo)/2;lo=Math.max(0,Math.floor((mid-15)/5)*5);hi=Math.min(100,lo+30)}return [lo,hi];}
+
+function friendlyEvidence(text){
+ if(text.startsWith('中性起点'))return '统一从 50 分起算，作为各年份之间的中性比较起点。';
+ if(text.startsWith('分项保留'))return '完成全部加减后，把四项分数保留到小数点后两位。';
+ if(text.startsWith('限制到'))return '为保持统一量尺，把超出范围的结果限制在 0–100 分。';
+ if(text.startsWith('甲日天乙贵人'))return '传统规则中，甲日主的天乙贵人位为丑、未；当年（流年）命中，因此只给“贵人”项加分。';
+ const stem=text.match(/^(流年|大运) ([^ ]+) · (透干|藏干)(.)（(.) \/ ([^）]+)）：十神 \[([^\]]+)\] \+ 喜忌 (-?\d+(?:\.\d+)?) × \[1,1,0.5,1\]；占比 ([\d.]+)%/);
+ if(stem){const [,source,pillar,place,gan,element,god,base,prefRaw,weight]=stem,pref=Number(prefRaw);const placeText=place==='透干'?'在天干直接出现（透干）':'包含在地支内部（藏干）';const prefText=pref===0?'当前口径不额外加减':`当前口径对${element}的五行加权为 ${sign(pref,0)}`;return `${sourceName(source)} ${pillar}：${gan}${element}${placeText}，相对甲日主属于“${god}”；十神基础分为 [${base}]，${prefText}，本位置权重 ${weight}%。`;}
+ let s=text.replace(/^流年 /,'当年（流年） ').replace(/^大运 /,'十年阶段（大运） ')
+  .replace(' × 原局年柱 ',' 与出生盘（原局）的年柱 ')
+  .replace(' × 原局月柱 ',' 与出生盘（原局）的月柱 ')
+  .replace(' × 原局日柱 ',' 与出生盘（原局）的日柱 ')
+  .replace(' × 原局时柱 ',' 与出生盘（原局）的时柱 ')
+  .replace(' × 大运 ',' 与十年阶段（大运） ')
+  .replace(/六冲/g,'牵动较强（六冲）').replace(/六合/g,'较易配合（六合）')
+  .replace(/六害/g,'有隐性牵扯（六害）').replace(/相破/g,'配合中带消耗（相破）')
+  .replace(/子卯刑/g,'关系偏紧（子卯刑）').replace(/自刑简化项/g,'同支重复，按内耗关系（自刑）简化计分')
+  .replace('日支感情项 ×1.5','日支通常用于观察亲密关系，因此感情项 ×1.5')
+  .replace('天干五合，只计连接，不判合化','天干形成连接（五合）；只计连接，不判断合化')
+  .replace('不推断合化','只记录关系，不判断是否合化');
+ return s;
+}
+function impactLabel(row){
+ const stem=row.evidence.match(/^(流年|大运) ([^ ]+) · (透干|藏干)(.)（(.) \/ ([^）]+)）/);
+ if(stem)return `${sourceName(stem[1])} ${stem[2]}：${stem[4]}${stem[5]}（${stem[6]}，${stem[3]==='透干'?'天干直接出现':'地支内含'}）`;
+ return friendlyEvidence(row.evidence).split('；')[0];
+}
+function syncRangeControls(){
+ $('rangeStart').value=viewStart;$('rangeEnd').value=viewEnd;$('rangeLabel').textContent=`${viewStart}–${viewEnd}`;
+ const left=(viewStart-YEAR_MIN)/(YEAR_MAX-YEAR_MIN)*100,right=(viewEnd-YEAR_MIN)/(YEAR_MAX-YEAR_MIN)*100;
+ $('rangeFill').style.left=`${left}%`;$('rangeFill').style.width=`${right-left}%`;
+}
+function renderSeriesControls(){const defs=[['total','综合 K 线','#dbe6f3'],...M.keys.map((k,i)=>[k,M.names[i],colors[i]])];$('seriesControls').innerHTML=defs.map(([key,label,color])=>`<label class="series-toggle ${series[key]?'active':''}" style="--series:${color}"><input type="checkbox" data-series="${key}" ${series[key]?'checked':''}><span class="series-mark"></span>${label}</label>`).join('');}
+function renderProfiles(){
+ const current=variants[profile][selected-YEAR_MIN].score,values=Object.fromEntries(Object.keys(M.profiles).map(p=>[p,variants[p][selected-YEAR_MIN].score]));
+ $('sensitivity').innerHTML=Object.entries(M.profiles).map(([p,meta])=>{const delta=values[p]-current;return `<button type="button" class="profile-option ${p===profile?'active':''}" data-profile="${p}" aria-pressed="${p===profile}"><span class="profile-copy"><b>${meta.label}</b><small>${meta.description}</small></span><span class="profile-score"><strong>${fmt(values[p])}</strong><em>${p===profile?'当前口径':sign(delta)+' 分'}</em></span></button>`;}).join('');
+ const spread=Math.max(...Object.values(values))-Math.min(...Object.values(values));
+ const reading=spread<=4?'三种结果接近，判断较稳定。':spread<=9?'三种结果有一定差异，解读时应保留余地。':'三种结果差异明显，本年分数较依赖身强弱与五行取用的判断。';
+ $('profileSummary').innerHTML=`口径差 <strong>${fmt(spread)}</strong> 分 · ${reading}`;
+}
+
+function render(){
+ const d=all[selected-YEAR_MIN],data=visible();syncRangeControls();$('year').value=selected;$('prev').disabled=selected===YEAR_MIN;$('next').disabled=selected===YEAR_MAX;
+ $('metrics').innerHTML=[['综合指数',d.score,'#ffb454',null],...M.names.map((n,i)=>[n,d.scores[M.keys[i]],colors[i],M.keys[i]])].map(([n,v,col,key])=>{const prev=all[selected-YEAR_MIN-1];const change=prev?v-(key?prev.scores[key]:prev.score):v-50;return `<div class="metric"><div class="metric-name">${n}</div><div class="metric-value" style="color:${col}">${fmt(v)}</div><svg class="metric-line" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><polyline points="${line(data,key,100,40)}" fill="none" stroke="${col}" stroke-width="2"/></svg><div class="metric-change"><span>${selected} · ${d.ganZhi}</span><span class="${tone(change)}">${sign(change)} ${selected===YEAR_MIN?'较基准':'较上年'}</span></div></div>`}).join('');
+ renderSeriesControls();drawChart(data,d);renderProfiles();
+ $('yearDetail').innerHTML=`<div class="year-head"><strong>${d.ganZhi}年</strong><span>${d.age} 虚岁</span></div><p class="year-sub">十年阶段（大运）：${d.daYun==='童限'?'尚未起运':d.daYun}<br>本流年：${d.period.start.slice(0,10)} — ${d.period.end.slice(0,10)}<br>结束日也是下一流年的起点</p><div class="ohlc">${[['年初承接',d.open],['年度结果',d.close],['图示上界',d.high],['图示下界',d.low]].map(([n,v])=>`<div><span>${n}</span><b>${fmt(v)}</b></div>`).join('')}</div><p class="year-description">综合分 ${fmt(d.score)}，较上年 <span class="${tone(d.change)}">${sign(d.change)}</span>。<br>四项最高与最低相差 ${fmt(Math.max(...Object.values(d.scores))-Math.min(...Object.values(d.scores)))} 分。</p><h3>这一年为什么这样打分</h3>${d.ledger.filter(r=>!['BASE','CAP','ROUND'].includes(r.id)).sort((a,b)=>Math.abs(M.dot(b.vector))-Math.abs(M.dot(a.vector))).slice(0,3).map(r=>`<p class="impact">${impactLabel(r)}<br><span class="${tone(M.dot(r.vector))}">综合影响 ${sign(M.dot(r.vector))}</span></p>`).join('')}${d.period.segments.length>1?'<p class="small-note">这一年正好更换大运，按实际覆盖时间计算：'+d.period.segments.map(s=>s.name+' '+(s.weight*100).toFixed(1)+'%').join(' / ')+'</p>':''}`;
+ $('ledgerTitle').textContent=`${selected} ${d.ganZhi} · 评分账本`;
+ $('ledger').innerHTML=d.ledger.map(r=>`<tr><td>${friendlyEvidence(r.evidence)}<small>规则 ${r.id}${r.multiplier!=null?' · 本项权重 '+M.round(r.multiplier):''}</small></td>${r.vector.map(v=>`<td class="${tone(v)} numeric">${sign(v,3)}</td>`).join('')}<td class="${tone(M.dot(r.vector))} numeric">${sign(M.dot(r.vector),3)}</td></tr>`).join('');
+ $('ledgerTotal').innerHTML=`<tr><td>最终分数 <small>全部规则汇总后保留两位小数</small></td>${M.keys.map(k=>`<td>${fmt(d.scores[k])}</td>`).join('')}<td style="color:var(--amber)">${fmt(d.score)}</td></tr>`;
+}
+
+function drawChart(data,d){
+ const rect=$('chart').getBoundingClientRect(),w=Math.max(300,rect.width||1000),h=rect.height||410,l=54,r=20,t=42,b=44,pw=w-l-r,ph=h-t-b,step=pw/data.length,[lo,hi]=chartDomain(),x=i=>l+(i+.5)*step,y=n=>t+(hi-n)/(hi-lo)*ph;let s='';
+ $('axisDomain').textContent=`纵轴 ${lo}–${hi}`;
+ for(let i=0;i<=5;i++){const n=Math.round((lo+(hi-lo)*i/5)*10)/10;s+=`<line x1="${l}" y1="${y(n)}" x2="${w-r}" y2="${y(n)}" stroke="#2e3b49" stroke-dasharray="${Math.abs(n-50)<.01?'6 5':'2 5'}"/><text x="${l-12}" y="${y(n)+5}" fill="#9eb0c4" font-size="14" text-anchor="end">${n}</text>`;}
+ let last='';data.forEach((p,i)=>{const name=p.period.segments[p.period.segments.length-1].name;if(name!==last){s+=`<line x1="${x(i)-step/2}" x2="${x(i)-step/2}" y1="24" y2="${h-b}" stroke="#46566a" stroke-dasharray="4 5"/><text x="${x(i)}" y="18" font-size="12" fill="#9cacbf">${name}</text>`;last=name;}});
+ const at=data.findIndex(p=>p.year===selected);s+=`<rect x="${x(at)-step/2}" y="30" width="${step}" height="${h-b-30}" fill="#eef5ff" opacity=".055"/><line x1="${x(at)}" x2="${x(at)}" y1="${t}" y2="${h-b}" stroke="#d8e3ef" opacity=".42" stroke-dasharray="4 5"/>`;
+ if(series.total)data.forEach((p,i)=>{const col=p.close>=p.open?'#40cc9a':'#f47b80',cw=Math.max(1.5,step*.48);s+=`<g><title>${p.year} ${p.ganZhi}：综合 ${p.score}，${p.daYun}</title><line x1="${x(i)}" x2="${x(i)}" y1="${y(p.high)}" y2="${y(p.low)}" stroke="${col}" stroke-width="1" opacity=".58"/><rect x="${x(i)-cw/2}" y="${y(Math.max(p.open,p.close))}" width="${cw}" height="${Math.max(2,Math.abs(y(p.open)-y(p.close)))}" rx="1" fill="${col}" ${p.year===selected?'stroke="#eef5ff" stroke-width="1.2"':''}/></g>`;});
+ M.keys.forEach((key,k)=>{if(!series[key])return;const points=data.map((p,i)=>`${x(i)},${y(p.scores[key])}`).join(' ');s+=`<polyline points="${points}" fill="none" stroke="${colors[k]}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"><title>${M.names[k]}趋势</title></polyline><circle cx="${x(at)}" cy="${y(d.scores[key])}" r="4.2" fill="${colors[k]}" stroke="#0b0f15" stroke-width="2"><title>${selected} ${M.names[k]} ${d.scores[key]}</title></circle>`;});
+ data.forEach((p,i)=>{if(i%Math.ceil(data.length/Math.max(4,Math.floor(w/95)))===0)s+=`<text x="${x(i)}" y="${h-15}" fill="#a6b7ca" font-size="14" text-anchor="middle">${p.year}</text>`;});
+ if(series.total)s+=`<circle cx="${x(at)}" cy="${y(d.score)}" r="4.5" fill="#eef5ff" stroke="#101820" stroke-width="2"><title>${selected} 综合 ${d.score}</title></circle>`;
+ $('chart').innerHTML=`<svg viewBox="0 0 ${w} ${h}" aria-label="${data[0].year}至${data.at(-1).year}综合运势 K 线与分项折线">${s}</svg>`;
+ $('chartHint').textContent=`${selected} ${d.ganZhi} · 综合 ${fmt(d.score)} · 点击选年 / ← → 切换`;
+}
