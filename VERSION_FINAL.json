@@ -1,12 +1,18 @@
 {
   "name": "Life K-Line Final",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "status": "canonical",
   "repository": "chennanyu01-ux/box",
   "branch": "life-kline-final",
-  "baseline": "2002-12-12/",
-  "shared_styles": "styles.css",
-  "supersedes": "old lifekline generation workflow",
-  "created": "2026-09-12",
+  "source_root": "products/",
+  "products": {
+    "mobile_html": "1.0.0",
+    "desktop_html": "1.0.0",
+    "pdf": "1.0.0"
+  },
+  "runtime": "offline-local",
+  "data_source": "single calculated customer JSON",
+  "supersedes": "old lifekline and hosted HTML workflow",
+  "released": "2026-09-12",
   "trigger": "用人生K线最终版生成"
 }
