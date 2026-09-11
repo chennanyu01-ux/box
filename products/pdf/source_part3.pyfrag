@@ -4,8 +4,8 @@
     for i,r in enumerate(seen[:3]):
         xx=x0+i*(w+9); roundbox(c,xx,y,w,130,WHITE,LINE,4,.5)
         txt(c,f'{r["year"]} / {titles[i]}',xx+10,y+107,7,'NotoSC-Bold',AMBER if i==0 else INK)
-        txt(c,f'{r["ganZhi"]} · {r["daYun"]} · SCORE {r["score"]}',xx+10,y+90,6,'NotoSC-Bold',MUTED)
-        desc=f'该年综合分 {r["score"]}，用于观察当前阶段中的相对位置；更重要的是结合大运与前后年份一起理解。'
+        txt(c,f'{r["ganZhi"]} · {r["daYun"]} · SCORE {fmt_num(r["score"])}',xx+10,y+90,6,'NotoSC-Bold',MUTED)
+        desc=f'该年综合分 {fmt_num(r["score"])}，用于观察当前阶段中的相对位置；更重要的是结合大运与前后年份一起理解。'
         para(c,desc,xx+10,y+42,w-20,42,'body'); para(c,r['reason'],xx+10,y+8,w-20,30,'small')
     footer(c,pg); c.showPage(); pg+=1
 
@@ -16,7 +16,7 @@
         for i,r in enumerate(arr[:10]):
             yy=y0+350-i*rowh
             if i%2==0: c.setFillColor(HexColor('#F6F5F0')); c.rect(x+7,yy-8,colw-14,rowh,fill=1,stroke=0)
-            txt(c,f'{i+1:02d}',x+12,yy+4,5.2,'NotoMono',MUTED); txt(c,str(r['year']),x+35,yy+4,6.1,'NotoMono-Bold',INK); txt(c,f'{r["age"]}岁',x+72,yy+4,5.5,'NotoSC',INK); txt(c,r['ganZhi'],x+106,yy+4,5.5,'NotoSC',INK); txt(c,r['daYun'],x+145,yy+4,5.5,'NotoSC',MUTED); txt(c,str(r['score']),x+195,yy+4,7,'NotoMono-Bold',GREEN if up else RED); para(c,r['reason'],x+228,yy-7,colw-240,24,'table2')
+            txt(c,f'{i+1:02d}',x+12,yy+4,5.2,'NotoMono',MUTED); txt(c,str(r['year']),x+35,yy+4,6.1,'NotoMono-Bold',INK); txt(c,f'{r["age"]}岁',x+72,yy+4,5.5,'NotoSC',INK); txt(c,r['ganZhi'],x+106,yy+4,5.5,'NotoSC',INK); txt(c,r['daYun'],x+145,yy+4,5.5,'NotoSC',MUTED); txt(c,fmt_num(r['score']),x+195,yy+4,7,'NotoMono-Bold',GREEN if up else RED); para(c,r['reason'],x+228,yy-7,colw-240,24,'table2')
     extreme_col('TOP 10 · 模型高位',tops,x0,True); extreme_col('BOTTOM 10 · 模型低位',bots,x0+colw+colgap,False)
     roundbox(c,x0,25,totalw,22,HexColor('#E9E5DB'),HexColor('#E0D9CC'),3,.4); txt(c,'读法：峰谷页只用于找“相对强弱”与阶段变化，不能直接翻译成收入、婚姻概率、疾病风险或投资结果。',x0+9,32,5.8,'NotoSC',MUTED); footer(c,pg); c.showPage(); pg+=1
 
@@ -54,10 +54,10 @@
             yy=table_y+table_h-headerh-(i+1)*rowh
             if i%2==0: c.setFillColor(HexColor('#F8F7F2')); c.rect(x0,yy,totalw,rowh,fill=1,stroke=0)
             if r['year']==CURRENT_YEAR: c.setFillColor(HexColor('#FAE7C8')); c.rect(x0,yy,totalw,rowh,fill=1,stroke=0)
-            line(c,x0,yy,x0+totalw,yy,LINE,.22); vals=[f'{r["age"]:02d}',str(r['year']),f'{r["age"]}岁',r['ganZhi'],r['daYun'],str(r['open']),str(r['close']),str(r['high']),str(r['low']),str(r['score'])]
+            line(c,x0,yy,x0+totalw,yy,LINE,.22); vals=[f'{r["age"]:02d}',str(r['year']),f'{r["age"]}岁',r['ganZhi'],r['daYun'],fmt_num(r['open']),fmt_num(r['close']),fmt_num(r['high']),fmt_num(r['low']),fmt_num(r['score'])]
             for j,v in enumerate(vals):
                 col=AMBER if (r['year']==CURRENT_YEAR and j in [1,9]) else INK; font='NotoMono-Bold' if j in [1,5,6,7,8,9] else 'NotoSC'; txt(c,v,x0+cols[j]+3,yy+rowh/2-2.2,5.4,font,col)
-            draw_mini_candle(c,x0+cols[10],yy+2,cols[11]-cols[10],rowh-4,r,30,90); delta=r['close']-r['open']; txt(c,f'{delta:+d}',x0+cols[11]+3,yy+rowh/2-2.2,5.5,'NotoMono-Bold',GREEN if delta>=0 else RED); para(c,r['reason'],x0+cols[12]+3,yy+2,cols[13]-cols[12]-6,rowh-4,'table2',valign='middle')
+            draw_mini_candle(c,x0+cols[10],yy+2,cols[11]-cols[10],rowh-4,r,30,90); delta=float(r['close'])-float(r['open']); dstr=('+' if delta>0 else '')+fmt_num(delta); txt(c,dstr,x0+cols[11]+3,yy+rowh/2-2.2,5.5,'NotoMono-Bold',GREEN if delta>=0 else RED); para(c,r['reason'],x0+cols[12]+3,yy+2,cols[13]-cols[12]-6,rowh-4,'table2',valign='middle')
         footer(c,pg); c.showPage(); pg+=1
     c.save(); print(OUT)
 
