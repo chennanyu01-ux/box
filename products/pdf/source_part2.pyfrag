@@ -16,7 +16,7 @@
         for r in sel:
             if r['year'] in seen: continue
             seen.add(r['year']); i=data.index(r); cx=px+(i+.5)*step; yy=py+(r['high']-yr_min)*yscale
-            c.setFillColor(AMBER); c.circle(cx,yy+4,1.5,fill=1,stroke=0); txt(c,f'{r["year"]} · {r["score"]}',cx,yy+8,4.8,'NotoMono-Bold',AMBER,'middle')
+            c.setFillColor(AMBER); c.circle(cx,yy+4,1.5,fill=1,stroke=0); txt(c,f'{r["year"]} · {fmt_num(r["score"])}',cx,yy+8,4.8,'NotoMono-Bold',AMBER,'middle')
     return (px,py,pw,ph)
 
 def stat_block(c,x,y,w,label,value,sub='',dark=False,accent=False):
@@ -39,26 +39,38 @@ def make_pdf():
     cx=20*mm; cy=80; cw=W-40*mm; ch=330; draw_kline(c,P,cx,cy,cw,ch,30,90,True,CURRENT_YEAR,True,True,True)
     txt(c,'100 年人生 K 线总览',cx+12,cy+ch-15,8.5,'NotoSC-Bold',WHITE); txt(c,'绿 = 年末高于年初   红 = 年末低于年初   影线 = 模型高/低区间   橙线 = 当前年份',cx+cw-12,cy+ch-15,5.6,'NotoSC',HexColor('#A9B8C1'),'end')
     sy=29; sw=(cw-4*9)/5; top1=tops[0]; bot1=bots[0]
-    stat_block(c,cx,sy,sw,f'当前年度 / {current["year"]}',f'{current["score"]}',f'{current["ganZhi"]} · {current["daYun"]}',True,True)
-    stat_block(c,cx+(sw+9),sy,sw,'100 年均值',f'{avg:.1f}',f'波动 σ {sd:.1f}',True); stat_block(c,cx+(sw+9)*2,sy,sw,'全局最高',f'{top1["score"]}',f'{top1["year"]} · {top1["ganZhi"]}',True); stat_block(c,cx+(sw+9)*3,sy,sw,'全局最低',f'{bot1["score"]}',f'{bot1["year"]} · {bot1["ganZhi"]}',True)
-    ph_cur=next(g for g in PH if g['name']==current['daYun']); stat_block(c,cx+(sw+9)*4,sy,sw,'当前大运均值',f'{ph_cur["avg"]:.1f}',f'{ph_cur["start"]}-{ph_cur["end"]}',True)
+    stat_block(c,cx,sy,sw,f'当前年度 / {current["year"]}',fmt_num(current['score']),f'{current["ganZhi"]} · {current["daYun"]}',True,True)
+    stat_block(c,cx+(sw+9),sy,sw,'100 年均值',f'{avg:.1f}',f'波动 σ {sd:.1f}',True); stat_block(c,cx+(sw+9)*2,sy,sw,'全局最高',fmt_num(top1['score']),f'{top1["year"]} · {top1["ganZhi"]}',True); stat_block(c,cx+(sw+9)*3,sy,sw,'全局最低',fmt_num(bot1['score']),f'{bot1["year"]} · {bot1["ganZhi"]}',True)
+    ph_cur=next(g for g in PH if g['name']==phase_name(current)); stat_block(c,cx+(sw+9)*4,sy,sw,'当前大运均值',f'{ph_cur["avg"]:.1f}',f'{ph_cur["start"]}-{ph_cur["end"]}',True)
     footer(c,pg,True); c.showPage(); pg+=1
 
     page_header(c,'02 / TIME STRUCTURE','人生时间结构','把 100 年拆成大运、十年块与峰谷区间；先看结构，再看单年。',page=pg); c.bookmarkPage('structure'); c.addOutlineEntry('02 时间结构','structure',0)
     x0=20*mm; y_top=H-53*mm; gap=5; totalw=W-40*mm; cellw=(totalw-gap*9)/10
     for i in range(10):
-        gg=P[i*10:(i+1)*10]; av=statistics.mean(z['score'] for z in gg); mn=min(z['score'] for z in gg); mx=max(z['score'] for z in gg); fill=HexColor('#D8E9E3') if av>=66 else HexColor('#E5E9E4') if av>=60 else HexColor('#EFE7D7') if av>=55 else HexColor('#F0DEDA'); xx=x0+i*(cellw+gap); roundbox(c,xx,y_top-55,cellw,55,fill,LINE,3,.4); txt(c,f'{gg[0]["age"]}-{gg[-1]["age"]}岁',xx+6,y_top-13,5.4,'NotoSC',MUTED); txt(c,f'{av:.1f}',xx+6,y_top-32,13,'NotoMono-Bold',INK); txt(c,f'{gg[0]["year"]}-{gg[-1]["year"]}',xx+6,y_top-45,5,'NotoMono',MUTED); txt(c,f'{mn}-{mx}',xx+cellw-6,y_top-45,5,'NotoMono',MUTED,'end')
+        gg=P[i*10:(i+1)*10]; av=statistics.mean(z['score'] for z in gg); mn=min(z['score'] for z in gg); mx=max(z['score'] for z in gg); fill=HexColor('#D8E9E3') if av>=66 else HexColor('#E5E9E4') if av>=60 else HexColor('#EFE7D7') if av>=55 else HexColor('#F0DEDA'); xx=x0+i*(cellw+gap); roundbox(c,xx,y_top-55,cellw,55,fill,LINE,3,.4); txt(c,f'{gg[0]["age"]}-{gg[-1]["age"]}岁',xx+6,y_top-13,5.4,'NotoSC',MUTED); txt(c,f'{av:.1f}',xx+6,y_top-32,13,'NotoMono-Bold',INK); txt(c,f'{gg[0]["year"]}-{gg[-1]["year"]}',xx+6,y_top-45,5,'NotoMono',MUTED); txt(c,f'{fmt_num(mn)}-{fmt_num(mx)}',xx+cellw-6,y_top-45,5,'NotoMono',MUTED,'end')
     txt(c,'十年均值 / 左下为年份，右下为区间',x0,y_top+8,6.2,'NotoSC-Bold',INK)
-    y1=y_top-82; txt(c,'大运阶段 / 每段直接显示均值、范围与高低年份',x0,y1+10,7.3,'NotoSC-Bold',INK); tbl_y=y1-215; rowh=18; cols=[0,52,122,180,230,280,340,430,585,745]; heads=['大运','年龄','公历','均值','低','高','波动','代表高点','代表低点']; c.setFillColor(NAVY); c.rect(x0,tbl_y+rowh*len(PH),totalw,rowh,fill=1,stroke=0)
-    for j,h in enumerate(heads): txt(c,h,x0+cols[j]+4,tbl_y+rowh*len(PH)+5.2,5.7,'NotoSC-Bold',WHITE)
+    y1=y_top-82; txt(c,'大运阶段 / 每段直接显示均值、范围与高低年份',x0,y1+10,7.3,'NotoSC-Bold',INK)
+
+    # Keep the phase chart fixed at the bottom. The table above it is sized
+    # dynamically so extra rows can never collide with the decade cards.
+    bx=x0; by=38; bw=totalw; bh=82
+    table_bottom=by+bh+14; table_top=y1-3
+    rowh=min(18,max(9.5,(table_top-table_bottom)/max(1,len(PH)+1)))
+    header_y=table_top-rowh
+    cols=[0,52,122,180,230,280,340,430,585,745]; heads=['大运','年龄','公历','均值','低','高','波动','代表高点','代表低点']
+    fs=5.7 if rowh>=14 else 4.9; baseline=max(3.0,(rowh-fs)*0.5)
+    c.setFillColor(NAVY); c.rect(x0,header_y,totalw,rowh,fill=1,stroke=0)
+    for j,h in enumerate(heads): txt(c,h,x0+cols[j]+4,header_y+baseline,fs,'NotoSC-Bold',WHITE)
     for ri,g in enumerate(PH):
-        yy=tbl_y+rowh*(len(PH)-1-ri)
+        yy=header_y-(ri+1)*rowh
         if ri%2==0: c.setFillColor(HexColor('#F9F8F3')); c.rect(x0,yy,totalw,rowh,fill=1,stroke=0)
-        line(c,x0,yy,x0+totalw,yy,LINE,.25); high=max(g['data'],key=lambda z:z['score']); low=min(g['data'],key=lambda z:z['score']); vals=[g['name'],f'{g["age0"]}-{g["age1"]}',f'{g["start"]}-{g["end"]}',f'{g["avg"]:.1f}',str(g['min']),str(g['max']),str(g['max']-g['min']),f'{high["year"]} / {high["score"]}',f'{low["year"]} / {low["score"]}']
-        for j,v in enumerate(vals): txt(c,v,x0+cols[j]+4,yy+5.2,5.7,'NotoMono' if j in [1,2,3,4,5,6,7,8] else 'NotoSC-Bold',INK if j!=0 else AMBER)
-    bx=x0; by=38; bw=totalw; bh=82; roundbox(c,bx,by,bw,bh,WHITE,LINE,4,.5); txt(c,'阶段均值谱',bx+10,by+bh-16,6.5,'NotoSC-Bold',INK); vals=[g['avg'] for g in PH]; mnv=45; mxv=72; plotx=bx+78; ploty=by+17; plotw=bw-95; ploth=50
+        line(c,x0,yy,x0+totalw,yy,LINE,.25); high=max(g['data'],key=lambda z:z['score']); low=min(g['data'],key=lambda z:z['score'])
+        vals=[g['name'],f'{g["age0"]}-{g["age1"]}',f'{g["start"]}-{g["end"]}',fmt_num(g['avg'],1),fmt_num(g['min']),fmt_num(g['max']),fmt_num(g['max']-g['min']),f'{high["year"]} / {fmt_num(high["score"])}',f'{low["year"]} / {fmt_num(low["score"])}']
+        for j,v in enumerate(vals): txt(c,v,x0+cols[j]+4,yy+baseline,fs,'NotoMono' if j in [1,2,3,4,5,6,7,8] else 'NotoSC-Bold',INK if j!=0 else AMBER)
+
+    roundbox(c,bx,by,bw,bh,WHITE,LINE,4,.5); txt(c,'阶段均值谱',bx+10,by+bh-16,6.5,'NotoSC-Bold',INK); vals=[g['avg'] for g in PH]; mnv=45; mxv=72; plotx=bx+78; ploty=by+17; plotw=bw-95; ploth=50
     for v in [50,60,70]: yy=ploty+(v-mnv)/(mxv-mnv)*ploth; line(c,plotx,yy,plotx+plotw,yy,GRID,.3); txt(c,str(v),plotx-6,yy-2,4.8,'NotoMono',MUTED,'end')
-    step=plotw/(len(vals)-1); pts=[(plotx+i*step,ploty+(v-mnv)/(mxv-mnv)*ploth) for i,v in enumerate(vals)]; c.setStrokeColor(AMBER); c.setLineWidth(1.4)
+    step=plotw/max(1,len(vals)-1); pts=[(plotx+i*step,ploty+(v-mnv)/(mxv-mnv)*ploth) for i,v in enumerate(vals)]; c.setStrokeColor(AMBER); c.setLineWidth(1.4)
     for a,b in zip(pts,pts[1:]): c.line(a[0],a[1],b[0],b[1])
     for i,(xx,yy) in enumerate(pts): c.setFillColor(NAVY); c.circle(xx,yy,2.1,fill=1,stroke=0); txt(c,PH[i]['name'],xx,ploty-9,4.7,'NotoSC',MUTED,'middle')
     footer(c,pg); c.showPage(); pg+=1
@@ -69,7 +81,7 @@ def make_pdf():
     for i,r in enumerate(years):
         yy=sy+chart_h-34-(i+1)*rowh
         if r['year']==current['year']: c.setFillColor(HexColor('#FAEBD3')); c.rect(sx+5,yy,sw-10,rowh,fill=1,stroke=0)
-        line(c,sx+8,yy,sx+sw-8,yy,LINE,.25); txt(c,str(r['year']),sx+10,yy+rowh/2-2,5.5,'NotoMono-Bold',AMBER if r['year']==current['year'] else INK); txt(c,r['ganZhi'],sx+44,yy+rowh/2-2,5.5,'NotoSC',INK); txt(c,r['daYun'],sx+78,yy+rowh/2-2,5.3,'NotoSC',MUTED); txt(c,str(r['score']),sx+sw-10,yy+rowh/2-2,6.4,'NotoMono-Bold',GREEN if r['score']>=65 else RED if r['score']<50 else INK,'end')
+        line(c,sx+8,yy,sx+sw-8,yy,LINE,.25); txt(c,str(r['year']),sx+10,yy+rowh/2-2,5.5,'NotoMono-Bold',AMBER if r['year']==current['year'] else INK); txt(c,r['ganZhi'],sx+44,yy+rowh/2-2,5.5,'NotoSC',INK); txt(c,r['daYun'],sx+78,yy+rowh/2-2,5.3,'NotoSC',MUTED); txt(c,fmt_num(r['score']),sx+sw-10,yy+rowh/2-2,6.4,'NotoMono-Bold',GREEN if r['score']>=65 else RED if r['score']<50 else INK,'end')
     y=42; w=(W-40*mm-18)/3; card_years=[current['year'],min(P[-1]['year'],current['year']+2),min(P[-1]['year'],current['year']+5)]; seen=[]
     for yy in card_years:
         r=next((z for z in P if z['year']==yy),None)
