@@ -9,7 +9,7 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
 from reportlab.lib.units import mm
 
-parser=argparse.ArgumentParser(description='Life K-Line PDF v1.0 builder')
+parser=argparse.ArgumentParser(description='Life K-Line PDF v1.1 builder')
 parser.add_argument('--data', required=True, help='input JSON')
 parser.add_argument('--out', default=None, help='output PDF')
 args=parser.parse_args()
@@ -93,10 +93,38 @@ def footer(c,page,dark=False):
     txt(c,'LIFE K-LINE / PERSONAL TIME ATLAS · 传统文化规则模型，不代表现实概率或投资、医疗判断',20*mm,y,5.5,'NotoSC',col)
     txt(c,f'{page:02d}',W-20*mm,y,5.8,'NotoMono-Bold',col,'end')
 
+def phase_name(rec):
+    """Return the dominant real luck phase for an annual record.
+
+    Transition years may carry display labels such as "甲申 → 乙酉". Those
+    are annual mixed-period labels, not independent decade phases. Structural
+    summaries assign the year to the period covering the larger share.
+    """
+    segments=(rec.get('period') or {}).get('segments') or []
+    if segments:
+        best=max(segments,key=lambda z: float(z.get('weight',0) or 0))
+        name=str(best.get('name','')).strip()
+        if name:
+            return name
+    raw=str(rec.get('daYun','')).strip()
+    if '→' in raw:
+        return raw.split('→',1)[0].strip()
+    return raw or '童限'
+
+def fmt_num(value,digits=2):
+    """Compact decimal formatting; never expose binary floating-point tails."""
+    try:
+        v=float(value)
+    except (TypeError,ValueError):
+        return str(value)
+    if abs(v-round(v))<1e-9:
+        return str(int(round(v)))
+    return f'{v:.{digits}f}'.rstrip('0').rstrip('.')
+
 def phase_groups(data=P):
     out=[]
-    for k,g in itertools.groupby(data,key=lambda z:z['daYun']):
-        gg=list(g); sc=[z['score'] for z in gg]
+    for k,g in itertools.groupby(data,key=phase_name):
+        gg=list(g); sc=[float(z['score']) for z in gg]
         out.append({'name':k,'start':gg[0]['year'],'end':gg[-1]['year'],'age0':gg[0]['age'],'age1':gg[-1]['age'],'avg':statistics.mean(sc),'min':min(sc),'max':max(sc),'data':gg})
     return out
 PH=phase_groups()
@@ -118,7 +146,7 @@ def draw_kline(c,data,x,y,w,h,yr_min=30,yr_max=90,dark=False,current_year=None,s
     c.setFillColor(bg); c.roundRect(x,y,w,h,5,fill=1,stroke=0)
     left=33; right=10; top=18; bottom=30; px=x+left; py=y+bottom; pw=w-left-right; ph=h-top-bottom
     n=len(data); step=pw/n; groups=[]
-    for k,g in itertools.groupby(enumerate(data),key=lambda t:t[1]['daYun']):
+    for k,g in itertools.groupby(enumerate(data),key=lambda t:phase_name(t[1])):
         g=list(g); groups.append((k,g[0][0],g[-1][0]))
     for gi,(name,i0,i1) in enumerate(groups):
         if gi%2==1:
