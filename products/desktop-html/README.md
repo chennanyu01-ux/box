@@ -1,7 +1,34 @@
-# Life K-Line Desktop v1.0
+# Life K-Line Desktop Classic v1.0
 
-Desktop canonical master. The build output is one self-contained offline HTML file with no CDN, server, GitHub runtime, or other network dependency.
+这是人生 K 线的正式电脑版母版。
 
-Interaction: mouse drag pans the time axis; mouse wheel zooms around the pointer; double-click resets the 100-year view; click selects a year. Touch-screen pinch zoom remains supported. The page keeps the total K-line plus career, wealth, relationship and noble-support series.
+## 设计基准
 
-The generated HTML can be opened directly from a local file in a modern desktop browser. Whether the user is in mainland China, online, offline, or using a VPN does not affect the core page because the final file loads no remote resources.
+电脑版不与手机版保持相同的界面或操作逻辑。它以原 `main/2002-12-12/` 的「壬午女命 · 可解释运势 K 线」为唯一视觉与交互基准：
+
+- 顶部固定命盘与年份区间双滑块；
+- 五项年度指标卡；
+- 左侧综合 K 线 + 分项趋势，右侧年度详情；
+- 点击图表选年、年份下拉框和左右按钮切换；
+- 三种评分口径敏感度对比；
+- 年度评分账本；
+- 术语、历法、评分规则和模型边界说明；
+- JSON / CSV 导出。
+
+不要再把手机版的捏合、横屏工作台、手机卡片布局移植到电脑版。
+
+## 最终交付形式
+
+源码可以拆分维护，但 `build.py` 会把 `styles.css + calendar.js + model.js + app1.js + app2.js` 全部内嵌进一个 HTML。最终交付给客户的是一个自包含的 `.html` 文件：
+
+- 无 CDN；
+- 无外链 CSS / JS；
+- 核心页面不发起网络请求；
+- 下载后可直接在 Chrome / Edge 等现代桌面浏览器双击打开；
+- 页面运行不依赖 GitHub、服务器、VPN 或中国大陆网络可达性。
+
+## 生成新客户
+
+先重新计算客户的真太阳时、四柱、大运、流年及评分数据，再把客户常量写入 `calendar.js` / `model.js` 和页面文案；不要直接复用示例命盘的数据。界面与交互层按本目录母版保持。
+
+本目录与 `products/mobile-html/`、`products/pdf/` 相互独立；三者可以共享同一客户计算结果，但 UI 与交互分别维护。
