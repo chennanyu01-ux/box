@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=yes">
+<meta name="color-scheme" content="dark">
+<title>{{NAME}} · 人生 K 线｜Desktop v1.0</title>
+<style>__STYLE__</style>
+</head>
+<body>
+<main class="shell">
+  <section class="hero">
+    <div class="hero-top">
+      <div><div class="eyebrow">Personal Life K-Line · Desktop Offline Edition</div><h1>{{NAME}} · 人生 K 线</h1><div class="subtitle">{{SUBTITLE}}</div></div>
+      <div class="pills">{{PILLS}}<span class="pill offline">● 单文件 · 离线可运行</span></div>
+    </div>
+    <div class="metrics" id="metrics"></div>
+  </section>
+
+  <section class="section card" id="klineSection">
+    <button type="button" class="fullscreen-close" id="fullscreenClose" aria-label="退出全屏">✕ 退出</button>
+    <div class="card-title">
+      <div><h2>100 年人生 K 线总览</h2><div class="hint">鼠标拖动平移 · 滚轮围绕指针缩放 · 双击恢复百年总览 · 触屏仍支持双指缩放。</div></div>
+      <div class="title-actions"><div class="legend"><span><i class="dot up"></i>上涨</span><span><i class="dot down"></i>下跌</span></div><button type="button" class="fullscreen-btn" id="fullscreenBtn" aria-label="全屏查看">⛶ 全屏</button></div>
+    </div>
+    <div class="series-controls" id="seriesControls" aria-label="趋势线显示开关"></div>
+    <div class="chart-scroller" id="chartScroller"><div class="chart-stage" id="chartStage"><svg id="chart" viewBox="0 0 1200 520" preserveAspectRatio="none" aria-label="人生K线图" focusable="false"></svg><div class="gesture-badge" id="gestureBadge"><b>100 年</b> · 滚轮缩放</div></div></div>
+    <div class="mobile-help">桌面操作：按住左键左右拖动；鼠标滚轮缩放时间轴；双击恢复百年总览；点击 K 线查看年份。</div>
+    <div class="detail" id="yearDetail"></div>
+  </section>
+
+  <section class="section card"><div class="card-title"><div><h2>五条线怎么看</h2><div class="hint">综合 K 线负责看整体节奏；四条分项线负责解释“为什么这一年高或低”。数值只表示本模型中的相对强弱。</div></div></div><div class="series-guide" id="seriesGuide"></div></section>
+
+  <section class="section two">
+    <div class="card"><div class="card-title"><div><h2>十年阶段结构</h2><div class="hint">按每十年综合分均值观察长期节奏。</div></div></div><div class="decades" id="decades"></div></div>
+    <div class="card"><div class="card-title"><div><h2>峰谷索引</h2><div class="hint">模型中的相对高低点，不代表现实结果概率。</div></div></div><div class="rank-wrap"><div class="rank-col"><h3>TOP 5</h3><div id="topRank"></div></div><div class="rank-col"><h3>BOTTOM 5</h3><div id="bottomRank"></div></div></div></div>
+  </section>
+
+  <section class="section card"><div class="card-title"><div><h2>个人画像</h2><div class="hint">把原网页中的解读压缩成适合反复查阅的信息卡。</div></div></div><div class="profile-grid" id="profiles"></div></section>
+
+  <section class="section card">
+    <div class="card-title"><div><h2>100 年逐年索引</h2><div class="hint">搜索年份、干支或大运；点击任一行会同步到上方年份详情。</div></div></div>
+    <div class="ledger-tools"><input id="search" class="search" placeholder="搜索：2031 / 辛亥 / 壬子"><select id="scoreFilter" class="filter"><option value="all">全部评分</option><option value="high">高位 ≥ 70</option><option value="mid">中段 50–69</option><option value="low">低位 < 50</option></select></div>
+    <div class="table-scroll"><table class="ledger"><thead><tr><th>年龄</th><th>年份</th><th>流年</th><th>大运</th><th>Score</th><th>OHLC</th><th>年度提示</th></tr></thead><tbody id="tbody"></tbody></table></div>
+  </section>
+
+  <footer class="footer"><strong>Life K-Line Desktop v1.0</strong> · 单文件 HTML · 无 CDN / 无外链脚本 / 无网络请求 · 传统文化与娱乐可视化，不用于医学、投资或现实结果预测</footer>
+</main>
+<script>__APP__</script>
+</body></html>
