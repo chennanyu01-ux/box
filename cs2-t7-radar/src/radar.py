@@ -1,75 +1,145 @@
-import argparse, json, os, re, time
+import argparse
+import json
+import os
+import sys
+import time
 from pathlib import Path
-from steamdt import SteamDTClient
 import db
-from scoring import score_item
+from steamdt import SteamDTClient, SteamDTError
+from settings import settings
+from engine import score_all, decision_report
+from collector import refresh_universe, collect_batch, collect_market, collect_hot, archive_kline
+from backtest import walk_forward
+from domain import timestamp
 
 ROOT = Path(__file__).resolve().parents[1]
 
-def load_config():
-    return json.loads((ROOT/'config.json').read_text('utf-8'))
 
-def refresh_universe(client, conn, cfg):
-    items = client.base_info()
-    inc = [re.compile(x, re.I) for x in cfg['universe_include']]
-    exc = [re.compile(x, re.I) for x in cfg.get('universe_exclude',[])]
-    chosen=[]
-    for x in items:
-        mh=x.get('marketHashName','')
-        if inc and not any(r.search(mh) for r in inc): continue
-        if any(r.search(mh) for r in exc): continue
-        chosen.append(x)
-    db.upsert_items(conn, chosen)
-    db.set_state(conn,'universe_refreshed_at',int(time.time()))
-    return len(chosen)
+def load_config(path=None):
+    return settings(json.loads(Path(path or ROOT/'config.json').read_text('utf-8')))
 
-def collect_batch(client, conn, cfg):
-    items=db.enabled_items(conn)
-    if not items: raise RuntimeError('universe empty; run refresh-universe first')
-    size=cfg.get('batch_size',100)
-    cursor=int(db.get_state(conn,'batch_cursor','0')) % len(items)
-    batch=items[cursor:cursor+size]
-    if len(batch)<size: batch += items[:size-len(batch)]
-    data=client.price_batch(batch)
-    count=db.insert_batch(conn,data)
-    db.set_state(conn,'batch_cursor',(cursor+size)%len(items))
-    return {'items':len(batch),'rows':count,'next_cursor':(cursor+size)%len(items)}
 
-def score_all(conn, cfg):
-    results=[]
-    now=int(time.time())
-    for mh in db.candidates(conn,168):
-        s=score_item(db.series(conn,mh,168),now)
-        if s:
-            meta=db.item_meta(conn,mh)
-            s['name_cn']=meta.get('display') or mh
-            s['marketHashName']=mh
-            s['buff_item_id']=meta.get('buff_item_id') or None
-            results.append(s)
-    results.sort(key=lambda x:x['score'],reverse=True)
-    return results
+def emit(value, output=None):
+    text = json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False)
+    if output:
+        target = Path(output)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        # Generated report output, never credentials.
+        target.write_text(text+'\n', encoding='utf-8')
+    else:
+        print(text)
 
-def main():
-    ap=argparse.ArgumentParser(description='CS2 T+7 accumulation radar')
+
+def cli_time(value):
+    parsed = timestamp(value)
+    if parsed is None:
+        raise argparse.ArgumentTypeError('use UTC epoch seconds or timezone-aware ISO date')
+    return parsed
+
+
+def main(argv=None):
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
+    ap = argparse.ArgumentParser(description='BUFF CS2 T+7 radar')
     ap.add_argument('--db', default=os.getenv('RADAR_DB', str(ROOT/'radar.db')))
-    sub=ap.add_subparsers(dest='cmd', required=True)
+    ap.add_argument('--config')
+    ap.add_argument('--fee', type=float, help='explicit seller fee fraction, e.g. 0.025 is a scenario assumption')
+    sub = ap.add_subparsers(dest='cmd', required=True)
     sub.add_parser('refresh-universe')
     sub.add_parser('collect-once')
-    p=sub.add_parser('score'); p.add_argument('--top',type=int,default=20)
-    sub.add_parser('run')
-    args=ap.parse_args(); cfg=load_config(); conn=db.connect(args.db); client=SteamDTClient()
-    if args.cmd=='refresh-universe': print(json.dumps({'universe':refresh_universe(client,conn,cfg)},ensure_ascii=False))
-    elif args.cmd=='collect-once': print(json.dumps(collect_batch(client,conn,cfg),ensure_ascii=False))
-    elif args.cmd=='score': print(json.dumps(score_all(conn,cfg)[:args.top],ensure_ascii=False,indent=2))
-    elif args.cmd=='run':
-        if not db.enabled_items(conn):
-            print('refreshing universe...'); print(refresh_universe(client,conn,cfg))
-        while True:
-            try:
-                print(time.strftime('%F %T'), collect_batch(client,conn,cfg))
-                top=score_all(conn,cfg)[:10]
-                print(json.dumps(top,ensure_ascii=False))
-            except Exception as e:
-                print('collector error:',repr(e))
-            time.sleep(cfg.get('batch_interval_seconds',61))
-if __name__=='__main__': main()
+    sub.add_parser('collect-market')
+    sub.add_parser('collect-hot')
+    p = sub.add_parser('archive-kline')
+    p.add_argument('--name')
+    p.add_argument('--type', type=int, default=1)
+    p = sub.add_parser('score')
+    p.add_argument('--top', type=int, default=20)
+    p.add_argument('--as-of', type=cli_time)
+    p.add_argument('--calibration')
+    p.add_argument('--output')
+    p = sub.add_parser('backtest')
+    p.add_argument('--start', type=cli_time, required=True)
+    p.add_argument('--end', type=cli_time, required=True)
+    p.add_argument('--as-of', type=cli_time)
+    p.add_argument('--output')
+    p.add_argument('--calibration-output')
+    p = sub.add_parser('import-data')
+    p.add_argument('path')
+    sub.add_parser('status')
+    p = sub.add_parser('run')
+    p.add_argument('--calibration')
+    args = ap.parse_args(argv)
+    cfg = load_config(args.config)
+    if args.fee is not None:
+        cfg = settings({**cfg, 'fee_rate': args.fee})
+    conn = db.connect(args.db)
+    try:
+        if args.cmd == 'score':
+            now = args.as_of or int(time.time())
+            calibration = json.loads(Path(args.calibration).read_text('utf-8')) if args.calibration else None
+            emit(decision_report(score_all(conn, cfg, now, calibration, persist=True), now, args.top), args.output)
+        elif args.cmd == 'backtest':
+            result = walk_forward(conn, args.start, args.end, args.as_of or int(time.time()), cfg)
+            emit(result, args.output)
+            if args.calibration_output:
+                emit(result['latest_calibration'], args.calibration_output)
+        elif args.cmd == 'status':
+            span = conn.execute('SELECT COUNT(*),COUNT(DISTINCT name),MIN(sampled_at),MAX(sampled_at) FROM snapshots').fetchone()
+            emit({'catalog_items': len(db.enabled_items(conn)), 'snapshot_rows': span[0],
+                  'sampled_items': span[1], 'first_sample_at': span[2], 'last_sample_at': span[3],
+                  'market_points': conn.execute('SELECT COUNT(*) FROM market_points').fetchone()[0],
+                  'api_key_configured': bool(os.getenv('STEAMDT_API_KEY')), 'fee_rate': cfg['fee_rate']})
+        elif args.cmd == 'import-data':
+            # Receipt times must be original, auditable times. Retrospective sources use today's available_at.
+            data = json.loads(Path(args.path).read_text('utf-8'))
+            for batch in data.get('batches', []):
+                if 'sampled_at' not in batch:
+                    raise ValueError('import batches require original sampled_at')
+                db.insert_batch(conn, batch['data'], batch['sampled_at'])
+            for version in data.get('items', []):
+                db.upsert_items(conn, version['data'], cli_time(str(version['available_at'])))
+            for point in data.get('market', []):
+                db.insert_market(conn, point['value'], point['observed_at'], point['available_at'])
+            db.insert_evidence(conn, data.get('evidence', []))
+            emit({'status': 'IMPORTED'})
+        else:
+            client = SteamDTClient()  # Offline commands need no API key.
+            if args.cmd == 'refresh-universe':
+                emit(refresh_universe(client, conn, cfg))
+            elif args.cmd == 'collect-once':
+                emit(collect_batch(client, conn, cfg))
+            elif args.cmd == 'collect-market':
+                emit(collect_market(client, conn))
+            elif args.cmd == 'collect-hot':
+                emit(collect_hot(client, conn, cfg, score_all(conn, cfg)))
+            elif args.cmd == 'archive-kline':
+                emit(archive_kline(client, conn, args.name, args.type))
+            elif args.cmd == 'run':
+                if not db.enabled_items(conn):
+                    emit(refresh_universe(client, conn, cfg))
+                while True:
+                    started = time.time()
+                    try:
+                        emit(refresh_universe(client, conn, cfg))
+                        emit(collect_batch(client, conn, cfg))
+                        emit(collect_market(client, conn))
+                        calibration = (json.loads(Path(args.calibration).read_text('utf-8'))
+                                       if args.calibration else None)
+                        results = score_all(conn, cfg, calibration=calibration)
+                        emit(collect_hot(client, conn, cfg, results))
+                        now = int(time.time())
+                        results = score_all(conn, cfg, now, calibration, persist=True)
+                        emit(decision_report(results, now, 10))
+                    except (SteamDTError, OSError, ValueError) as error:
+                        print('采集未完成:', str(error), file=sys.stderr)
+                    time.sleep(max(1, max(61,cfg.get('batch_interval_seconds',61))-(time.time()-started)))
+    finally:
+        conn.close()
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (ValueError, SteamDTError, OSError) as error:
+        print('错误:', str(error), file=sys.stderr)
+        sys.exit(2)

@@ -1,12 +1,29 @@
 {
-  "universe_include": ["^Sticker \\|", "^Sealed Graffiti \\|", "^Graffiti \\|"],
+  "universe_include": [],
   "universe_exclude": [],
   "batch_size": 100,
   "batch_interval_seconds": 61,
-  "hot_interval_seconds": 60,
   "hot_limit": 30,
-  "hot_score_threshold": 58,
-  "min_platforms": 2,
-  "min_sell_count": 3,
-  "signal_windows_hours": [1, 6, 24, 72, 168]
+  "fee_rate": null,
+  "slippage_rate": 0.005,
+  "history_hours": 504,
+  "max_quote_age_seconds": 21600,
+  "max_gap_seconds": 21600,
+  "min_24h_points": 5,
+  "min_decline_steps": 3,
+  "min_peer_count": 5,
+  "min_calibration_samples": 30,
+  "min_calibration_groups": 10,
+  "watch_names": [
+    "Sticker | Evil Geniuses (Holo) | Stockholm 2021",
+    "Sticker | Mastermind (Holo)",
+    "Sticker | Enemy Spotted (Holo)",
+    "M4A4 | Bullet Rain (Field-Tested)",
+    "AK-47 | Leet Museo (Field-Tested)",
+    "AWP | Hyper Beast (Field-Tested)",
+    "Sticker | Kill Count (Holo)",
+    "Sticker | Web Stuck (Holo)",
+    "Sticker | Gold Web (Foil)",
+    "MP9 | Starlight Protector (Field-Tested)"
+  ]
 }

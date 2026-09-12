@@ -25,15 +25,18 @@ class TestScoring(unittest.TestCase):
                              'sell_price':price,'sell_count':sell,'bid_price':price*0.96,'bid_count':bid})
         return rows, now
 
-    def test_accumulation_is_buyable(self):
+    def test_sparse_untimed_accumulation_is_not_yet_buyable(self):
         a,now=self.make_rows('accumulation'); flat,_=self.make_rows('flat')
         sa=score_item(a,now); sf=score_item(flat,now)
         self.assertEqual(sa['reference_platform'],'BUFF')
         self.assertTrue(sa['buff_data_available'])
         self.assertGreater(sa['manipulation_score'],sf['manipulation_score'])
         self.assertGreater(sa['entry_score'],sf['entry_score'])
-        self.assertEqual(sa['stage'],'ACCUMULATION')
-        self.assertEqual(sa['action'],'BUY_CANDIDATE')
+        self.assertIn('INSUFFICIENT_HISTORY', sa['blockers'])
+        self.assertIn('STALE_OR_UNTIMED_BUFF', sa['blockers'])
+        self.assertIn('NO_VALID_T7_CALIBRATION', sa['blockers'])
+        self.assertNotEqual(sa['action'],'BUY_CANDIDATE')
+        self.assertIsNone(sa['buy_price_max'])
 
     def test_blowoff_is_not_a_t7_entry(self):
         a,now=self.make_rows('accumulation'); b,_=self.make_rows('blowoff')
